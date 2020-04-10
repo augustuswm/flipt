@@ -49,6 +49,8 @@ func runImport(args []string) error {
 
 	case db.Postgres:
 		builder = sq.StatementBuilder.PlaceholderFormat(sq.Dollar).RunWith(stmtCacher)
+	case db.MySQL:
+		builder = sq.StatementBuilder.RunWith(stmtCacher)
 	}
 
 	importFilename := args[0]
@@ -120,10 +122,12 @@ func runImport(args []string) error {
 
 	migrator.Close()
 
+	conn := db.NewConn(builder, sql, driver)
+
 	var (
-		flagStore    = db.NewFlagStore(builder)
-		segmentStore = db.NewSegmentStore(builder)
-		ruleStore    = db.NewRuleStore(builder, sql)
+		flagStore    = db.NewFlagStore(conn)
+		segmentStore = db.NewSegmentStore(conn)
+		ruleStore    = db.NewRuleStore(conn)
 
 		dec = yaml.NewDecoder(in)
 		doc = new(Document)

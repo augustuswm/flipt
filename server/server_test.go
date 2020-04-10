@@ -14,6 +14,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/markphelps/flipt/storage/db"
 )
 
 var logger, _ = test.NewNullLogger()
@@ -21,10 +23,12 @@ var logger, _ = test.NewNullLogger()
 func TestNew(t *testing.T) {
 	var (
 		builder = sq.StatementBuilderType{}
-		db      = new(sql.DB)
+		sql      = new(sql.DB)
 	)
 
-	server := New(logger, builder, db)
+	conn := db.NewConn(builder, sql, db.SQLite)
+
+	server := New(logger, conn)
 	assert.NotNil(t, server)
 }
 

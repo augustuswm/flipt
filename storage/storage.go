@@ -62,6 +62,10 @@ func WithOffset(offset uint64) QueryOption {
 	}
 }
 
+type Conn interface {
+	Esc(term string) (string)
+}
+
 // FlagStore stores and retrieves flags and variants
 type FlagStore interface {
 	GetFlag(ctx context.Context, key string) (*flipt.Flag, error)

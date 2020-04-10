@@ -151,10 +151,12 @@ func run(m *testing.M) int {
 		logger.Fatal(err)
 	}
 
-	flagStore = NewFlagStore(builder)
-	segmentStore = NewSegmentStore(builder)
-	ruleStore = NewRuleStore(builder, db)
-	evaluationStore = NewEvaluationStore(builder)
+	conn := NewConn(builder, db, driver)
+
+	flagStore = NewFlagStore(conn)
+	segmentStore = NewSegmentStore(conn)
+	ruleStore = NewRuleStore(conn)
+	evaluationStore = NewEvaluationStore(conn)
 
 	return m.Run()
 }

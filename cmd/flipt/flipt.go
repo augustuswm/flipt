@@ -183,7 +183,7 @@ func main() {
 	})
 
 	rootCmd.SetVersionTemplate(banner)
-	rootCmd.PersistentFlags().StringVar(&cfgPath, "config", "/etc/flipt/config/default.yml", "path to config file")
+	rootCmd.PersistentFlags().StringVar(&cfgPath, "config", "config/default.yml", "path to config file")
 	rootCmd.Flags().BoolVar(&forceMigrate, "force-migrate", false, "force migrations before running")
 	_ = rootCmd.Flags().MarkHidden("force-migrate")
 
@@ -310,9 +310,13 @@ func run(_ []string) error {
 			builder = sq.StatementBuilder.RunWith(stmtCacher)
 		case db.Postgres:
 			builder = sq.StatementBuilder.PlaceholderFormat(sq.Dollar).RunWith(stmtCacher)
+		case db.MySQL:
+			builder = sq.StatementBuilder.RunWith(stmtCacher)
 		}
 
-		srv = server.New(logger, builder, sql, serverOpts...)
+		conn := db.NewConn(builder, sql, driver)
+
+		srv = server.New(logger, conn, serverOpts...)
 
 		grpcOpts = append(grpcOpts, grpc_middleware.WithUnaryServerChain(
 			grpc_recovery.UnaryServerInterceptor(),

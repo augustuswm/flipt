@@ -18,15 +18,13 @@ var _ storage.RuleStore = &RuleStore{}
 
 // RuleStore is a SQL RuleStore
 type RuleStore struct {
-	builder sq.StatementBuilderType
-	db      *sql.DB
+	conn *Conn
 }
 
 // NewRuleStore creates a RuleStore
-func NewRuleStore(builder sq.StatementBuilderType, db *sql.DB) *RuleStore {
+func NewRuleStore(conn *Conn) *RuleStore {
 	return &RuleStore{
-		builder: builder,
-		db:      db,
+		conn: conn,
 	}
 }
 
@@ -38,7 +36,7 @@ func (s *RuleStore) GetRule(ctx context.Context, id string) (*flipt.Rule, error)
 
 		rule = &flipt.Rule{}
 
-		err = s.builder.Select("id, flag_key, segment_key, rank, created_at, updated_at").
+		err = s.conn.builder.Select("id, flag_key, segment_key, rank, created_at, updated_at").
 			From("rules").
 			Where(sq.And{sq.Eq{"id": id}}).
 			QueryRowContext(ctx).
@@ -68,7 +66,7 @@ func (s *RuleStore) ListRules(ctx context.Context, flagKey string, opts ...stora
 	var (
 		rules []*flipt.Rule
 
-		query = s.builder.Select("id, flag_key, segment_key, rank, created_at, updated_at").
+		query = s.conn.builder.Select("id, flag_key, segment_key, rank, created_at, updated_at").
 			From("rules").
 			Where(sq.Eq{"flag_key": flagKey}).
 			OrderBy("rank ASC")
@@ -143,7 +141,7 @@ func (s *RuleStore) CreateRule(ctx context.Context, r *flipt.CreateRuleRequest) 
 		}
 	)
 
-	if _, err := s.builder.
+	if _, err := s.conn.builder.
 		Insert("rules").
 		Columns("id", "flag_key", "segment_key", "rank", "created_at", "updated_at").
 		Values(rule.Id, rule.FlagKey, rule.SegmentKey, rule.Rank, &timestamp{rule.CreatedAt}, &timestamp{rule.UpdatedAt}).
@@ -167,7 +165,7 @@ func (s *RuleStore) CreateRule(ctx context.Context, r *flipt.CreateRuleRequest) 
 
 // UpdateRule updates an existing rule
 func (s *RuleStore) UpdateRule(ctx context.Context, r *flipt.UpdateRuleRequest) (*flipt.Rule, error) {
-	query := s.builder.Update("rules").
+	query := s.conn.builder.Update("rules").
 		Set("segment_key", r.SegmentKey).
 		Set("updated_at", &timestamp{proto.TimestampNow()}).
 		Where(sq.And{sq.Eq{"id": r.Id}, sq.Eq{"flag_key": r.FlagKey}})
@@ -191,19 +189,19 @@ func (s *RuleStore) UpdateRule(ctx context.Context, r *flipt.UpdateRuleRequest) 
 
 // DeleteRule deletes a rule
 func (s *RuleStore) DeleteRule(ctx context.Context, r *flipt.DeleteRuleRequest) error {
-	tx, err := s.db.Begin()
+	tx, err := s.conn.db.Begin()
 	if err != nil {
 		return err
 	}
 
 	// delete rule
-	_, err = s.builder.Delete("rules").
+	_, err = s.conn.builder.Delete("rules").
 		RunWith(tx).
 		Where(sq.And{sq.Eq{"id": r.Id}, sq.Eq{"flag_key": r.FlagKey}}).
 		ExecContext(ctx)
 
 	// reorder existing rules after deletion
-	rows, err := s.builder.Select("id").
+	rows, err := s.conn.builder.Select("id").
 		RunWith(tx).
 		From("rules").
 		Where(sq.Eq{"flag_key": r.FlagKey}).
@@ -249,7 +247,7 @@ func (s *RuleStore) DeleteRule(ctx context.Context, r *flipt.DeleteRuleRequest) 
 
 // OrderRules orders rules
 func (s *RuleStore) OrderRules(ctx context.Context, r *flipt.OrderRulesRequest) error {
-	tx, err := s.db.Begin()
+	tx, err := s.conn.db.Begin()
 	if err != nil {
 		return err
 	}
@@ -266,7 +264,7 @@ func (s *RuleStore) orderRules(ctx context.Context, runner sq.BaseRunner, flagKe
 	updatedAt := proto.TimestampNow()
 
 	for i, id := range ruleIDs {
-		_, err := s.builder.Update("rules").
+		_, err := s.conn.builder.Update("rules").
 			RunWith(runner).
 			Set("rank", i+1).
 			Set("updated_at", &timestamp{updatedAt}).
@@ -294,7 +292,7 @@ func (s *RuleStore) CreateDistribution(ctx context.Context, r *flipt.CreateDistr
 		}
 	)
 
-	if _, err := s.builder.
+	if _, err := s.conn.builder.
 		Insert("distributions").
 		Columns("id", "rule_id", "variant_id", "rollout", "created_at", "updated_at").
 		Values(d.Id, d.RuleId, d.VariantId, d.Rollout, &timestamp{d.CreatedAt}, &timestamp{d.UpdatedAt}).
@@ -318,7 +316,7 @@ func (s *RuleStore) CreateDistribution(ctx context.Context, r *flipt.CreateDistr
 
 // UpdateDistribution updates an existing distribution
 func (s *RuleStore) UpdateDistribution(ctx context.Context, r *flipt.UpdateDistributionRequest) (*flipt.Distribution, error) {
-	query := s.builder.Update("distributions").
+	query := s.conn.builder.Update("distributions").
 		Set("rollout", r.Rollout).
 		Set("updated_at", &timestamp{proto.TimestampNow()}).
 		Where(sq.And{sq.Eq{"id": r.Id}, sq.Eq{"rule_id": r.RuleId}, sq.Eq{"variant_id": r.VariantId}})
@@ -344,7 +342,7 @@ func (s *RuleStore) UpdateDistribution(ctx context.Context, r *flipt.UpdateDistr
 		distribution = &flipt.Distribution{}
 	)
 
-	if err := s.builder.Select("id, rule_id, variant_id, rollout, created_at, updated_at").
+	if err := s.conn.builder.Select("id, rule_id, variant_id, rollout, created_at, updated_at").
 		From("distributions").
 		Where(sq.And{sq.Eq{"id": r.Id}, sq.Eq{"rule_id": r.RuleId}, sq.Eq{"variant_id": r.VariantId}}).
 		QueryRowContext(ctx).
@@ -360,7 +358,7 @@ func (s *RuleStore) UpdateDistribution(ctx context.Context, r *flipt.UpdateDistr
 
 // DeleteDistribution deletes a distribution
 func (s *RuleStore) DeleteDistribution(ctx context.Context, r *flipt.DeleteDistributionRequest) error {
-	_, err := s.builder.Delete("distributions").
+	_, err := s.conn.builder.Delete("distributions").
 		Where(sq.And{sq.Eq{"id": r.Id}, sq.Eq{"rule_id": r.RuleId}, sq.Eq{"variant_id": r.VariantId}}).
 		ExecContext(ctx)
 
@@ -368,7 +366,7 @@ func (s *RuleStore) DeleteDistribution(ctx context.Context, r *flipt.DeleteDistr
 }
 
 func (s *RuleStore) distributions(ctx context.Context, rule *flipt.Rule) (err error) {
-	query := s.builder.Select("id", "rule_id", "variant_id", "rollout", "created_at", "updated_at").
+	query := s.conn.builder.Select("id", "rule_id", "variant_id", "rollout", "created_at", "updated_at").
 		From("distributions").
 		Where(sq.Eq{"rule_id": rule.Id}).
 		OrderBy("created_at ASC")

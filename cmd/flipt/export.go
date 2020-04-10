@@ -95,6 +95,8 @@ func runExport(_ []string) error {
 		builder = sq.StatementBuilder.RunWith(stmtCacher)
 	case db.Postgres:
 		builder = sq.StatementBuilder.PlaceholderFormat(sq.Dollar).RunWith(stmtCacher)
+	case db.MySQL:
+		builder = sq.StatementBuilder.RunWith(stmtCacher)
 	}
 
 	// default to stdout
@@ -114,10 +116,12 @@ func runExport(_ []string) error {
 
 	defer out.Close()
 
+	conn := db.NewConn(builder, sql, driver)
+
 	var (
-		flagStore    = db.NewFlagStore(builder)
-		segmentStore = db.NewSegmentStore(builder)
-		ruleStore    = db.NewRuleStore(builder, sql)
+		flagStore    = db.NewFlagStore(conn)
+		segmentStore = db.NewSegmentStore(conn)
+		ruleStore    = db.NewRuleStore(conn)
 
 		enc = yaml.NewEncoder(out)
 		doc = new(Document)

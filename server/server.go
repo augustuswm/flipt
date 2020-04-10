@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/markphelps/flipt/errors"
 	flipt "github.com/markphelps/flipt/rpc"
@@ -11,7 +10,6 @@ import (
 	"github.com/markphelps/flipt/storage/cache"
 	"github.com/markphelps/flipt/storage/db"
 
-	sq "github.com/Masterminds/squirrel"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -32,12 +30,12 @@ type Server struct {
 }
 
 // New creates a new Server
-func New(logger logrus.FieldLogger, builder sq.StatementBuilderType, sql *sql.DB, opts ...Option) *Server {
+func New(logger logrus.FieldLogger, conn *db.Conn, opts ...Option) *Server {
 	var (
-		flagStore       = db.NewFlagStore(builder)
-		segmentStore    = db.NewSegmentStore(builder)
-		ruleStore       = db.NewRuleStore(builder, sql)
-		evaluationStore = db.NewEvaluationStore(builder)
+		flagStore       = db.NewFlagStore(conn)
+		segmentStore    = db.NewSegmentStore(conn)
+		ruleStore       = db.NewRuleStore(conn)
+		evaluationStore = db.NewEvaluationStore(conn)
 
 		s = &Server{
 			logger:          logger,

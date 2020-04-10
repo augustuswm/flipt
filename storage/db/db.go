@@ -4,9 +4,11 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
+	"os"
 	"net/url"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/golang/protobuf/ptypes"
 	proto "github.com/golang/protobuf/ptypes/timestamp"
 )
@@ -44,7 +46,14 @@ func Open(url string) (*sql.DB, Driver, error) {
 		return nil, 0, err
 	}
 
-	db, err := sql.Open(driver.String(), u.String())
+	conn := toConnString(u, driver)
+
+	logger := logrus.New()
+	logger.SetOutput(os.Stdout)
+	logger.Info(conn)
+
+	db, err := sql.Open(driver.String(), conn)
+
 	if err != nil {
 		return nil, 0, err
 	}
@@ -56,11 +65,13 @@ var (
 	driverToString = map[Driver]string{
 		SQLite:   "sqlite3",
 		Postgres: "postgres",
+		MySQL: "mysql",
 	}
 
 	schemeToDriver = map[string]Driver{
 		"file":     SQLite,
 		"postgres": Postgres,
+		"mysql": MySQL,
 	}
 )
 
@@ -77,6 +88,8 @@ const (
 	SQLite
 	// Postgres ...
 	Postgres
+	// MySQL ...
+	MySQL
 )
 
 func parse(in string) (Driver, *url.URL, error) {
@@ -98,4 +111,12 @@ func parse(in string) (Driver, *url.URL, error) {
 	}
 
 	return driver, u, nil
+}
+
+func toConnString(u *url.URL, driver Driver) (conn string) {
+	if driver == MySQL {
+		return fmt.Sprintf("%v@tcp(%v)%v?%v", u.User.String(), u.Host, u.Path, u.RawQuery)
+	}
+
+	return u.String()
 }

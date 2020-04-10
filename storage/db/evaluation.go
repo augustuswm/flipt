@@ -21,19 +21,19 @@ type optionalConstraint struct {
 
 // EvaluationStore is a SQL EvaluationStore
 type EvaluationStore struct {
-	builder sq.StatementBuilderType
+	conn *Conn
 }
 
 // NewEvaluationStore creates an EvaluationStore
-func NewEvaluationStore(builder sq.StatementBuilderType) *EvaluationStore {
+func NewEvaluationStore(conn *Conn) *EvaluationStore {
 	return &EvaluationStore{
-		builder: builder,
+		conn: conn,
 	}
 }
 
 func (s *EvaluationStore) GetEvaluationRules(ctx context.Context, flagKey string) ([]*storage.EvaluationRule, error) {
 	// get all rules for flag with their constraints if any
-	rows, err := s.builder.Select("r.id, r.flag_key, r.segment_key, s.match_type, r.rank, c.id, c.type, c.property, c.operator, c.value").
+	rows, err := s.conn.builder.Select("r.id, r.flag_key, r.segment_key, s.match_type, r.rank, c.id, c.type, c.property, c.operator, c.value").
 		From("rules r").
 		Join("segments s on (r.segment_key = s.key)").
 		LeftJoin("constraints c ON (s.key = c.segment_key)").
@@ -112,7 +112,7 @@ func (s *EvaluationStore) GetEvaluationRules(ctx context.Context, flagKey string
 }
 
 func (s *EvaluationStore) GetEvaluationDistributions(ctx context.Context, ruleID string) ([]*storage.EvaluationDistribution, error) {
-	rows, err := s.builder.Select("d.id", "d.rule_id", "d.variant_id", "d.rollout", "v.key").
+	rows, err := s.conn.builder.Select("d.id", "d.rule_id", "d.variant_id", "d.rollout", "v.key").
 		From("distributions d").
 		Join("variants v ON (d.variant_id = v.id)").
 		Where(sq.Eq{"d.rule_id": ruleID}).
