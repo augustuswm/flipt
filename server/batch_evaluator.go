@@ -63,6 +63,9 @@ func (s *Server) batchEvaluate(ctx context.Context, r *flipt.BatchEvaluationRequ
 	for _, flag := range flags {
 		if flag.Enabled {
 			s.logger.WithField("flag", flag).Debug("Eval Flag")
+
+			// TODO: Fix n+1 - evaluate requires up to 2 additional queries
+			// 1 query for matching rules, and 1 for distributions if a rule is found
 			eval, err := s.evaluateFlag(ctx, r.EntityId, r.Context, flag)
 
 			if err != nil {

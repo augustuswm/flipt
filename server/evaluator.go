@@ -233,7 +233,7 @@ func (s *Server) evaluateFlag(ctx context.Context, entityId string, reqCtx map[s
 		return resp, nil
 	} // end rule loop
 
-	return resp, nil // TODO: This should probably be an error?
+	return resp, nil
 }
 
 func crc32Num(entityID string, salt string) uint {
