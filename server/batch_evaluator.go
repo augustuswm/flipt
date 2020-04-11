@@ -54,15 +54,13 @@ func (s *Server) batchEvaluate(ctx context.Context, r *flipt.BatchEvaluationRequ
 
 	var results []*flipt.FlagEvaluation
 
-	for _, key := range r.FlagKeys {
-		s.logger.WithField("key", key).Debug("Lookup Flag")
-		flag, err := s.FlagStore.GetFlag(ctx, key)
-		s.logger.WithField("flag", flag).Debug("Found Flag")
-	
-		if err != nil {
-			return resp, err
-		}
+	flags, err := s.FlagStore.GetFlags(ctx, r.FlagKeys)
 
+	if err != nil {
+		return resp, err
+	}
+
+	for _, flag := range flags {
 		if flag.Enabled {
 			s.logger.WithField("flag", flag).Debug("Eval Flag")
 			eval, err := s.evaluateFlag(ctx, r.EntityId, r.Context, flag)
@@ -73,7 +71,7 @@ func (s *Server) batchEvaluate(ctx context.Context, r *flipt.BatchEvaluationRequ
 
 			results = append(results, eval)
 		} else {
-			s.logger.WithField("key", key).Debug("Flag not enabled")
+			s.logger.WithField("key", flag.Key).Debug("Flag not enabled")
 		}
 	}
 

@@ -68,15 +68,20 @@ func (s *FlagStore) GetFlag(ctx context.Context, key string) (*flipt.Flag, error
 	return flag, nil
 }
 
+func (s *FlagStore) GetFlags(ctx context.Context, keys []string) ([]*flipt.Flag, error) {
+	query := s.conn.builder.Select(s.conn.Esc("key") + ", name, description, enabled, created_at, updated_at").
+		From("flags").
+		Where(sq.Eq{s.conn.Esc("key"): keys}).
+		OrderBy("created_at ASC")
+
+	return s.processFlagListQuery(ctx, query)
+}
+
 // ListFlags lists all flags
 func (s *FlagStore) ListFlags(ctx context.Context, opts ...storage.QueryOption) ([]*flipt.Flag, error) {
-	var (
-		flags []*flipt.Flag
-
-		query = s.conn.builder.Select(s.conn.Esc("key") + ", name, description, enabled, created_at, updated_at").
-			From("flags").
-			OrderBy("created_at ASC")
-	)
+	query := s.conn.builder.Select(s.conn.Esc("key") + ", name, description, enabled, created_at, updated_at").
+		From("flags").
+		OrderBy("created_at ASC")
 
 	params := &storage.QueryParams{}
 
@@ -91,6 +96,12 @@ func (s *FlagStore) ListFlags(ctx context.Context, opts ...storage.QueryOption) 
 	if params.Offset > 0 {
 		query = query.Offset(params.Offset)
 	}
+
+	return s.processFlagListQuery(ctx, query)
+}
+
+func (s *FlagStore) processFlagListQuery(ctx context.Context, query sq.SelectBuilder) ([]*flipt.Flag, error) {
+	var flags []*flipt.Flag
 
 	rows, err := query.QueryContext(ctx)
 	if err != nil {

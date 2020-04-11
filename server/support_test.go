@@ -23,6 +23,11 @@ func (m *flagStoreMock) GetFlag(ctx context.Context, key string) (*flipt.Flag, e
 	return args.Get(0).(*flipt.Flag), args.Error(1)
 }
 
+func (m *flagStoreMock) GetFlags(ctx context.Context, keys []string) ([]*flipt.Flag, error) {
+	args := m.Called(ctx, keys)
+	return args.Get(0).([]*flipt.Flag), args.Error(1)
+}
+
 func (m *flagStoreMock) ListFlags(ctx context.Context, opts ...storage.QueryOption) ([]*flipt.Flag, error) {
 	args := m.Called(ctx, opts)
 	return args.Get(0).([]*flipt.Flag), args.Error(1)
