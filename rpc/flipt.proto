@@ -52,6 +52,35 @@ message EvaluationResponse {
   double request_duration_millis = 9;
 }
 
+message BatchEvaluationRequest {
+  option (grpc.gateway.protoc_gen_swagger.options.openapiv2_schema) = {
+		json_schema: {
+			required: ["flag_keys", "entity_id"]
+    }
+  };
+
+  string request_id = 1;
+  repeated string flag_keys = 2;
+  string entity_id = 3;
+  map<string, string> context = 4;
+}
+
+message FlagEvaluation {
+  bool match = 1;
+  string flag_key = 2;
+  string segment_key = 3;
+  string value = 4;
+}
+
+message BatchEvaluationResponse {
+  string request_id = 1;
+  string entity_id = 2;
+  map<string, string> request_context = 3;
+  repeated FlagEvaluation evaluations = 4;
+  google.protobuf.Timestamp timestamp = 5;
+  double request_duration_millis = 6;
+}
+
 message Flag {
   string key = 1;
   string name = 2;
@@ -430,6 +459,13 @@ service Flipt {
     option (grpc.gateway.protoc_gen_swagger.options.openapiv2_operation) = {
 			description: "Evaluate";
 			tags: "evaluate";
+    };
+  }
+
+  rpc BatchEvaluate(BatchEvaluationRequest) returns (BatchEvaluationResponse) {
+    option (grpc.gateway.protoc_gen_swagger.options.openapiv2_operation) = {
+			description: "Batch Evaluate";
+			tags: "batch_evaluate";
     };
   }
 

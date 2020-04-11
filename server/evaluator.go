@@ -60,7 +60,27 @@ func (s *Server) evaluate(ctx context.Context, r *flipt.EvaluationRequest) (*fli
 		return resp, errors.ErrInvalidf("flag %q is disabled", r.FlagKey)
 	}
 
-	rules, err := s.EvaluationStore.GetEvaluationRules(ctx, r.FlagKey)
+	eval, err := s.evaluateFlag(ctx, r.EntityId, r.Context, flag)
+
+	if err != nil {
+		return resp, err
+	}
+
+	resp.Match = eval.Match
+	resp.SegmentKey = eval.SegmentKey
+	resp.Value = eval.Value
+
+	return resp, nil
+}
+
+func (s *Server) evaluateFlag(ctx context.Context, entityId string, reqCtx map[string]string, flag *flipt.Flag) (*flipt.FlagEvaluation, error) {
+	var (
+		resp  = &flipt.FlagEvaluation{
+			FlagKey: flag.Key,
+		}
+	)
+
+	rules, err := s.EvaluationStore.GetEvaluationRules(ctx, flag.Key)
 	if err != nil {
 		return resp, err
 	}
@@ -84,7 +104,7 @@ func (s *Server) evaluate(ctx context.Context, r *flipt.EvaluationRequest) (*fli
 
 		// constraint loop
 		for _, c := range rule.Constraints {
-			v := r.Context[c.Property]
+			v := reqCtx[c.Property]
 
 			var (
 				match bool
@@ -191,7 +211,7 @@ func (s *Server) evaluate(ctx context.Context, r *flipt.EvaluationRequest) (*fli
 		}
 
 		var (
-			bucket = crc32Num(r.EntityId, r.FlagKey)
+			bucket = crc32Num(entityId, flag.Key)
 			// sort.SearchInts searches for x in a sorted slice of ints and returns the index
 			// as specified by Search. The return value is the index to insert x if x is
 			// not present (it could be len(a)).
@@ -213,7 +233,7 @@ func (s *Server) evaluate(ctx context.Context, r *flipt.EvaluationRequest) (*fli
 		return resp, nil
 	} // end rule loop
 
-	return resp, nil
+	return resp, nil // TODO: This should probably be an error?
 }
 
 func crc32Num(entityID string, salt string) uint {
