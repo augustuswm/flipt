@@ -27,7 +27,11 @@ func NewConn(builder sq.StatementBuilderType, db *sql.DB, driver Driver) *Conn {
 func (c *Conn) Esc(term string) string {
 	if c.driver == MySQL {
 		return fmt.Sprintf("`%v`", term)
-	} else {
-		return term
+	} else if c.driver == Postgres {
+		return fmt.Sprintf("\"%v\"", term)
+	} else if c.driver == SQLite {
+		return fmt.Sprintf("\"%v\"", term)
 	}
+
+	return term
 }
