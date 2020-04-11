@@ -300,7 +300,7 @@ func (s *FlagStore) UpdateVariant(ctx context.Context, r *flipt.UpdateVariantReq
 		v = &flipt.Variant{}
 	)
 
-	if err := s.conn.builder.Select("id, " + s.conn.Esc("key") + ", flag_key, name, description, created_at, updated_at").
+	if err := s.conn.builder.Select("id, "+s.conn.Esc("key")+", flag_key, name, description, created_at, updated_at").
 		From("variants").
 		Where(sq.And{sq.Eq{"id": r.Id}, sq.Eq{"flag_key": r.FlagKey}}).
 		QueryRowContext(ctx).
@@ -324,7 +324,7 @@ func (s *FlagStore) DeleteVariant(ctx context.Context, r *flipt.DeleteVariantReq
 }
 
 func (s *FlagStore) variants(ctx context.Context, flag *flipt.Flag) (err error) {
-	query := s.conn. builder.Select("id, flag_key, " + s.conn.Esc("key") + ", name, description, created_at, updated_at").
+	query := s.conn.builder.Select("id, flag_key, " + s.conn.Esc("key") + ", name, description, created_at, updated_at").
 		From("variants").
 		Where(sq.Eq{"flag_key": flag.Key}).
 		OrderBy("created_at ASC")

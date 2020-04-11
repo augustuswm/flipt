@@ -38,7 +38,7 @@ func (s *SegmentStore) GetSegment(ctx context.Context, key string) (*flipt.Segme
 
 		segment = &flipt.Segment{}
 
-		err = s.conn.builder.Select(s.conn.Esc("key") + ", name, description, match_type, created_at, updated_at").
+		err = s.conn.builder.Select(s.conn.Esc("key")+", name, description, match_type, created_at, updated_at").
 			From("segments").
 			Where(sq.Eq{s.conn.Esc("key"): key}).
 			QueryRowContext(ctx).Scan(

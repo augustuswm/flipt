@@ -75,7 +75,7 @@ func (s *Server) evaluate(ctx context.Context, r *flipt.EvaluationRequest) (*fli
 
 func (s *Server) evaluateFlag(ctx context.Context, entityId string, reqCtx map[string]string, flag *flipt.Flag) (*flipt.FlagEvaluation, error) {
 	var (
-		resp  = &flipt.FlagEvaluation{
+		resp = &flipt.FlagEvaluation{
 			FlagKey: flag.Key,
 		}
 	)

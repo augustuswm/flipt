@@ -63,7 +63,7 @@ func WithOffset(offset uint64) QueryOption {
 }
 
 type Conn interface {
-	Esc(term string) (string)
+	Esc(term string) string
 }
 
 // FlagStore stores and retrieves flags and variants

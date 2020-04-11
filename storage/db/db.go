@@ -4,13 +4,13 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
-	"os"
 	"net/url"
+	"os"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/golang/protobuf/ptypes"
 	proto "github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/sirupsen/logrus"
 )
 
 type timestamp struct {
@@ -65,13 +65,13 @@ var (
 	driverToString = map[Driver]string{
 		SQLite:   "sqlite3",
 		Postgres: "postgres",
-		MySQL: "mysql",
+		MySQL:    "mysql",
 	}
 
 	schemeToDriver = map[string]Driver{
 		"file":     SQLite,
 		"postgres": Postgres,
-		"mysql": MySQL,
+		"mysql":    MySQL,
 	}
 )
 

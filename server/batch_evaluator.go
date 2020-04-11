@@ -11,6 +11,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/golang/protobuf/ptypes"
+
 	// "github.com/markphelps/flipt/errors"
 	flipt "github.com/markphelps/flipt/rpc"
 	// "github.com/markphelps/flipt/storage"
@@ -39,7 +40,6 @@ func (s *Server) BatchEvaluate(ctx context.Context, r *flipt.BatchEvaluationRequ
 	return resp, nil
 }
 
-
 func (s *Server) batchEvaluate(ctx context.Context, r *flipt.BatchEvaluationRequest) (*flipt.BatchEvaluationResponse, error) {
 	var (
 		ts, _ = ptypes.TimestampProto(time.Now().UTC())
@@ -47,7 +47,7 @@ func (s *Server) batchEvaluate(ctx context.Context, r *flipt.BatchEvaluationRequ
 			RequestId:      r.RequestId,
 			EntityId:       r.EntityId,
 			RequestContext: r.Context,
-			Evaluations: 		nil,
+			Evaluations:    nil,
 			Timestamp:      ts,
 		}
 	)

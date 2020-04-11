@@ -62,24 +62,24 @@ func (f *FlagCache) GetFlag(ctx context.Context, k string) (*flipt.Flag, error) 
 
 func (f *FlagCache) GetFlags(ctx context.Context, ks []string) ([]*flipt.Flag, error) {
 	var (
-		flags	 []*flipt.Flag
+		flags     []*flipt.Flag
 		remaining []string
 	)
-	
+
 	for _, k := range ks {
 		key := flagCachePrefix + k
 
 		if data, ok := f.cache.Get(key); ok {
 			f.logger.Debugf("cache hit: %q", key)
 			cacheHitTotal.WithLabelValues("flag", "memory").Inc()
-	
+
 			flag, ok := data.(*flipt.Flag)
-			
+
 			if !ok {
 				// not flag, bad cache
 				return nil, ErrCacheCorrupt
 			}
-	
+
 			flags = append(flags, flag)
 		} else {
 			remaining = append(remaining, k)
@@ -87,14 +87,14 @@ func (f *FlagCache) GetFlags(ctx context.Context, ks []string) ([]*flipt.Flag, e
 	}
 
 	remotes, err := f.store.GetFlags(ctx, remaining)
-	
+
 	if err != nil {
 		return flags, err
 	}
 
 	for _, flag := range remotes {
-		f.cache.Set(flagCachePrefix + flag.Key, flag)
-		f.logger.Debugf("cache miss; added: %q", flagCachePrefix + flag.Key)
+		f.cache.Set(flagCachePrefix+flag.Key, flag)
+		f.logger.Debugf("cache miss; added: %q", flagCachePrefix+flag.Key)
 		cacheMissTotal.WithLabelValues("flag", "memory").Inc()
 	}
 

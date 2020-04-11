@@ -23,7 +23,7 @@ var logger, _ = test.NewNullLogger()
 func TestNew(t *testing.T) {
 	var (
 		builder = sq.StatementBuilderType{}
-		sql      = new(sql.DB)
+		sql     = new(sql.DB)
 	)
 
 	conn := db.NewConn(builder, sql, db.SQLite)
