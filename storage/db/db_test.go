@@ -40,6 +40,12 @@ func TestParse(t *testing.T) {
 			url:    "postgres://postgres@localhost:5432/flipt?sslmode=disable",
 		},
 		{
+			name:   "mysql",
+			input:  "mysql://user:pwd@localhost:3306/flipt?multiStatements=true",
+			driver: MySQL,
+			url:    "user:pwd@tcp(localhost:3306)/flipt?multiStatements=true",
+		},
+		{
 			name:    "invalid url",
 			input:   "http://a b",
 			wantErr: true,
@@ -69,7 +75,7 @@ func TestParse(t *testing.T) {
 
 			require.NoError(t, err)
 			assert.Equal(t, driver, d)
-			assert.Equal(t, url, u.String())
+			assert.Equal(t, url, toConnString(u, driver))
 		})
 	}
 }
