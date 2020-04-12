@@ -76,6 +76,7 @@ type serverConfig struct {
 	GRPCPort  int    `json:"grpcPort,omitempty"`
 	CertFile  string `json:"certFile,omitempty"`
 	CertKey   string `json:"certKey,omitempty"`
+	EvalOnly  bool   `json:"evalOnly,omitempty"`
 }
 
 type databaseConfig struct {
@@ -146,6 +147,7 @@ const (
 	cfgServerGRPCPort  = "server.grpc_port"
 	cfgServerCertFile  = "server.cert_file"
 	cfgServerCertKey   = "server.cert_key"
+	cfgServerEvalOnly  = "server.eval_only"
 
 	// DB
 	cfgDBURL            = "db.url"
@@ -227,6 +229,10 @@ func Load(path string) (*Config, error) {
 
 	if viper.IsSet(cfgServerCertKey) {
 		cfg.Server.CertKey = viper.GetString(cfgServerCertKey)
+	}
+
+	if viper.IsSet(cfgServerEvalOnly) {
+		cfg.Server.EvalOnly = viper.GetBool(cfgServerEvalOnly)
 	}
 
 	// DB

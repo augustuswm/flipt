@@ -13,7 +13,7 @@ func TestEscapesForMySQL(t *testing.T) {
 	logger := logrus.New()
 	logger.SetOutput(ioutil.Discard)
 	db, _, err := Open("file:../../flipt_test.db")
-	
+
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -33,7 +33,7 @@ func TestDoesNotEscapeForPostgres(t *testing.T) {
 	logger := logrus.New()
 	logger.SetOutput(ioutil.Discard)
 	db, _, err := Open("file:../../flipt_test.db")
-	
+
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -53,7 +53,7 @@ func TestDoesNotEscapeForSQLite(t *testing.T) {
 	logger := logrus.New()
 	logger.SetOutput(ioutil.Discard)
 	db, _, err := Open("file:../../flipt_test.db")
-	
+
 	if err != nil {
 		logger.Fatal(err)
 	}

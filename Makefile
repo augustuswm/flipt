@@ -75,6 +75,12 @@ proto: ## Build protobufs
 		--grpc-gateway_out=logtostderr=true,grpc_api_configuration=./rpc/flipt.yaml:./rpc \
 		--swagger_out=logtostderr=true,grpc_api_configuration=./rpc/flipt.yaml:./swagger \
 		$(PROJECT).proto
+	protoc -I/usr/local/include -I. \
+		-Irpc \
+		--go_out=plugins=grpc:./rpc \
+		--grpc-gateway_out=logtostderr=true,grpc_api_configuration=./rpc/flipt_evaluator.yaml:./rpc \
+		--swagger_out=logtostderr=true,grpc_api_configuration=./rpc/flipt_evaluator.yaml:./swagger \
+		$(PROJECT)_evaluator.proto
 
 .PHONY: assets
 assets: $(UI_OUTPUT_PATH) ## Build the ui

@@ -21,6 +21,7 @@
 #   https_port: 443
 #   http_port: 8080
 #   grpc_port: 9000
+#   eval_only: false
 
 # db:
 #   url: file:/var/opt/flipt/flipt.db

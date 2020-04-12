@@ -1,0 +1,11 @@
+type: google.api.Service
+config_version: 3
+
+http:
+  rules:
+  - selector: flipt.FliptEvaluator.Evaluate
+    post: /api/v1/evaluate
+    body: "*"
+  - selector: flipt.FliptEvaluator.BatchEvaluate
+    post: /api/v1/evaluate/batch
+    body: "*"

@@ -337,7 +337,13 @@ func run(_ []string) error {
 		}
 
 		grpcServer = grpc.NewServer(grpcOpts...)
-		pb.RegisterFliptServer(grpcServer, srv)
+
+		if cfg.Server.EvalOnly {
+			pb.RegisterFliptEvaluatorServer(grpcServer, srv)
+		} else {
+			pb.RegisterFliptServer(grpcServer, srv)
+		}
+
 		grpc_prometheus.EnableHandlingTimeHistogram()
 		grpc_prometheus.Register(grpcServer)
 
@@ -377,8 +383,14 @@ func run(_ []string) error {
 			return fmt.Errorf("connecting to grpc server: %w", err)
 		}
 
-		if err := pb.RegisterFliptHandler(ctx, api, conn); err != nil {
-			return fmt.Errorf("registering grpc gateway: %w", err)
+		if cfg.Server.EvalOnly {
+			if err := pb.RegisterFliptEvaluatorHandler(ctx, api, conn); err != nil {
+				return fmt.Errorf("registering eval only grpc gateway: %w", err)
+			}
+		} else {
+			if err := pb.RegisterFliptHandler(ctx, api, conn); err != nil {
+				return fmt.Errorf("registering grpc gateway: %w", err)
+			}
 		}
 
 		if cfg.Cors.Enabled {
@@ -415,7 +427,7 @@ func run(_ []string) error {
 			r.Handle("/config", cfg)
 		})
 
-		if cfg.UI.Enabled {
+		if cfg.UI.Enabled && !cfg.Server.EvalOnly {
 			swagger := packr.NewBox("../../swagger")
 			r.Mount("/docs", http.StripPrefix("/docs/", http.FileServer(swagger)))
 
@@ -435,7 +447,7 @@ func run(_ []string) error {
 
 		color.Green("\nAPI: %s://%s:%d/api/v1", cfg.Server.Protocol, cfg.Server.Host, httpPort)
 
-		if cfg.UI.Enabled {
+		if cfg.UI.Enabled && !cfg.Server.EvalOnly {
 			color.Green("UI: %s://%s:%d", cfg.Server.Protocol, cfg.Server.Host, httpPort)
 		}
 
