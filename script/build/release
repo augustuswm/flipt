@@ -1,20 +1,23 @@
 #!/bin/bash
 
-set -euo pipefail
+SHA1=$(git rev-parse HEAD | cut -c 1-7)
 
-GORELEASER_VERSION=v0.125.0
+VERSION=$SHA1-t
+
+set -euo pipefail
 
 cd "$(dirname "$0")/../.." || exit
 
-github-release-notes -org markphelps -repo flipt --since-latest-release | tee release.out
+mkdir -p dist
 
-docker run --rm --privileged \
-  -v "$PWD":/flipt \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -w /flipt \
-  -e GITHUB_TOKEN \
-  -e DOCKER_USERNAME \
-  -e DOCKER_PASSWORD \
-  goreleaser/goreleaser:"$GORELEASER_VERSION"-cgo --rm-dist --release-notes release.out
+rm -rf dist/$VERSION
 
-rm release.out
+mkdir dist/$VERSION
+mkdir dist/$VERSION/config
+
+docker build -t flipt-builder -f script/build/Dockerfile .
+docker run -v "$PWD/dist/$VERSION":/out -t flipt-builder
+
+cp -r config/migrations dist/$VERSION/config
+
+tar -zcvf dist/$VERSION.tar.gz dist/$VERSION
