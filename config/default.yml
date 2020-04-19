@@ -25,5 +25,6 @@
 
 # db:
 #   url: file:/var/opt/flipt/flipt.db
+#   url: mysql://user:pass@localhost:3306/flipt?multiStatements=true&parseTime=true
 #   migrations:
 #     path: /etc/flipt/config/migrations
