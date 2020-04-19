@@ -34,8 +34,6 @@ require (
 	github.com/pingcap/errors v0.11.4 // indirect
 	github.com/prometheus/client_golang v1.5.1
 	github.com/rogpeppe/go-internal v1.5.0 // indirect
-	github.com/siddontang/go-log v0.0.0-20190221022429-1e957dd83bed // indirect
-	github.com/siddontang/go-mysql v0.0.0-20200311002057-7a62847fcdb5
 	github.com/sirupsen/logrus v1.5.0
 	github.com/spf13/afero v1.2.0 // indirect
 	github.com/spf13/cobra v0.0.7

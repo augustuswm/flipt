@@ -5,12 +5,10 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"net/url"
-	"os"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
 	proto "github.com/golang/protobuf/ptypes/timestamp"
-	"github.com/sirupsen/logrus"
 )
 
 type timestamp struct {
@@ -47,11 +45,6 @@ func Open(url string) (*sql.DB, Driver, error) {
 	}
 
 	conn := toConnString(u, driver)
-
-	logger := logrus.New()
-	logger.SetOutput(os.Stdout)
-	logger.Info(conn)
-
 	db, err := sql.Open(driver.String(), conn)
 
 	if err != nil {
