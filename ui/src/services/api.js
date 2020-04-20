@@ -5,8 +5,10 @@ let host =
     ? window.location.host
     : "localhost:8080";
 
-// Under the assumption that the token is the only cookie
-let auth = document.cookie ? document.cookie.split('=')[1] : '';
+let cookies = document.cookie.split(';');
+cookies = cookies.map(cookie => cookie.split('=')).filter(([name, value]) => name === 'token');
+
+let auth = cookies.length > 0 ? cookies[0][1] : '';
 let headers = auth ? { 'Authorization': `Bearer ${auth}` } : {};
 
 export const Api = axios.create({
