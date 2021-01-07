@@ -1,0 +1,19 @@
+#!/bin/bash
+
+SHA1=$(git rev-parse HEAD)
+TAG=$(echo $SHA1 | cut -c 1-7)-t
+
+rm -rf dist
+rm -rf tmp
+
+mkdir -p dist
+mkdir -p dist/$TAG
+mkdir -p dist/$TAG/config
+mkdir -p tmp
+
+cp -r config/migrations dist/$TAG/config
+
+docker build -t flipt-build -f build/tpt.Dockerfile .
+docker run -v $(pwd)/dist/$TAG:/out flipt-build
+
+tar -czvf tmp/$TAG.tar.gz dist

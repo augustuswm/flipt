@@ -8,11 +8,11 @@ log:
 #   enabled: false
 #   allowed_origins: "*"
 
-# cache:
-#   memory:
-#     enabled: false
-#     expiration: -1 # Items Do Not Expire
-#     eviction_interval: 10m # Evict Expired Items Every 10m
+cache:
+  memory:
+    enabled: true
+    expiration: 1m # Items Do Not Expire
+    eviction_interval: 10m # Evict Expired Items Every 10m
 
 # server:
 #   protocol: http

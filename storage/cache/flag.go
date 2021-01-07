@@ -52,7 +52,7 @@ func (c *Store) GetFlags(ctx context.Context, ks []string) ([]*flipt.Flag, error
 
 		if data, ok := c.cache.Get(key); ok {
 			c.logger.Debugf("cache hit: %q", key)
-			cacheHitTotal.WithLabelValues("flag", "memory").Inc()
+			cacheHitTotal.WithLabelValues("memory").Inc()
 
 			flag, ok := data.(*flipt.Flag)
 
@@ -76,7 +76,7 @@ func (c *Store) GetFlags(ctx context.Context, ks []string) ([]*flipt.Flag, error
 	for _, flag := range remotes {
 		c.cache.Set(flagCachePrefix + flag.Key, flag)
 		c.logger.Debugf("cache miss; added: %q", flagCachePrefix + flag.Key)
-		cacheMissTotal.WithLabelValues("flag", "memory").Inc()
+		cacheMissTotal.WithLabelValues("memory").Inc()
 	}
 
 	return append(flags, remotes...), nil
