@@ -7,6 +7,9 @@ http:
     post: /api/v1/evaluate
     body: "*"
   - selector: flipt.Flipt.BatchEvaluate
+    post: /api/v1/batch-evaluate
+    body: "*"
+  - selector: flipt.Flipt.BatchEvaluateLegacy
     post: /api/v1/evaluate/batch
     body: "*"
   - selector: flipt.Flipt.GetFlag

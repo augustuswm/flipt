@@ -24,16 +24,50 @@ var (
 	}
 )
 
-func TestEvaluate_FlagNotFound(t *testing.T) {
+func TestBatchEvaluate(t *testing.T) {
 	var (
-		flagStore = &flagStoreMock{}
-		s         = &Server{
-			logger:    logger,
-			FlagStore: flagStore,
+		store = &storeMock{}
+		s     = &Server{
+			logger: logger,
+			store:  store,
 		}
 	)
 
-	flagStore.On("GetFlag", mock.Anything, "foo").Return(&flipt.Flag{}, errors.ErrNotFoundf("flag %q", "foo"))
+	store.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
+
+	store.On("GetEvaluationRules", mock.Anything, "foo").Return([]*storage.EvaluationRule{}, nil)
+
+	resp, err := s.BatchEvaluate(context.TODO(), &flipt.BatchEvaluationRequest{
+		RequestId: "12345",
+		Requests: []*flipt.EvaluationRequest{
+			{
+				EntityId: "1",
+				FlagKey:  "foo",
+				Context: map[string]string{
+					"bar": "boz",
+				},
+			},
+		},
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, "12345", resp.RequestId)
+	assert.NotEmpty(t, resp.RequestDurationMillis)
+	assert.NotNil(t, resp.Responses)
+	assert.Equal(t, 1, len(resp.Responses))
+	assert.False(t, resp.Responses[0].Match)
+}
+
+func TestEvaluate_FlagNotFound(t *testing.T) {
+	var (
+		store = &storeMock{}
+		s     = &Server{
+			logger: logger,
+			store:  store,
+		}
+	)
+
+	store.On("GetFlag", mock.Anything, "foo").Return(&flipt.Flag{}, errors.ErrNotFoundf("flag %q", "foo"))
 
 	resp, err := s.Evaluate(context.TODO(), &flipt.EvaluationRequest{
 		EntityId: "1",
@@ -50,14 +84,14 @@ func TestEvaluate_FlagNotFound(t *testing.T) {
 
 func TestEvaluate_FlagDisabled(t *testing.T) {
 	var (
-		flagStore = &flagStoreMock{}
-		s         = &Server{
-			logger:    logger,
-			FlagStore: flagStore,
+		store = &storeMock{}
+		s     = &Server{
+			logger: logger,
+			store:  store,
 		}
 	)
 
-	flagStore.On("GetFlag", mock.Anything, "foo").Return(disabledFlag, nil)
+	store.On("GetFlag", mock.Anything, "foo").Return(disabledFlag, nil)
 
 	resp, err := s.Evaluate(context.TODO(), &flipt.EvaluationRequest{
 		EntityId: "1",
@@ -74,18 +108,16 @@ func TestEvaluate_FlagDisabled(t *testing.T) {
 
 func TestEvaluate_FlagNoRules(t *testing.T) {
 	var (
-		flagStore       = &flagStoreMock{}
-		evaluationStore = &evaluationStoreMock{}
-		s               = &Server{
-			logger:          logger,
-			FlagStore:       flagStore,
-			EvaluationStore: evaluationStore,
+		store = &storeMock{}
+		s     = &Server{
+			logger: logger,
+			store:  store,
 		}
 	)
 
-	flagStore.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
+	store.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
 
-	evaluationStore.On("GetEvaluationRules", mock.Anything, "foo").Return([]*storage.EvaluationRule{}, nil)
+	store.On("GetEvaluationRules", mock.Anything, "foo").Return([]*storage.EvaluationRule{}, nil)
 
 	resp, err := s.Evaluate(context.TODO(), &flipt.EvaluationRequest{
 		EntityId: "1",
@@ -101,18 +133,16 @@ func TestEvaluate_FlagNoRules(t *testing.T) {
 
 func TestEvaluate_RulesOutOfOrder(t *testing.T) {
 	var (
-		flagStore       = &flagStoreMock{}
-		evaluationStore = &evaluationStoreMock{}
-		s               = &Server{
-			logger:          logger,
-			FlagStore:       flagStore,
-			EvaluationStore: evaluationStore,
+		store = &storeMock{}
+		s     = &Server{
+			logger: logger,
+			store:  store,
 		}
 	)
 
-	flagStore.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
+	store.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
 
-	evaluationStore.On("GetEvaluationRules", mock.Anything, "foo").Return(
+	store.On("GetEvaluationRules", mock.Anything, "foo").Return(
 		[]*storage.EvaluationRule{
 			{
 				ID:               "1",
@@ -164,18 +194,16 @@ func TestEvaluate_RulesOutOfOrder(t *testing.T) {
 // Match ALL constraints
 func TestEvaluate_MatchAll_NoVariants_NoDistributions(t *testing.T) {
 	var (
-		flagStore       = &flagStoreMock{}
-		evaluationStore = &evaluationStoreMock{}
-		s               = &Server{
-			logger:          logger,
-			FlagStore:       flagStore,
-			EvaluationStore: evaluationStore,
+		store = &storeMock{}
+		s     = &Server{
+			logger: logger,
+			store:  store,
 		}
 	)
 
-	flagStore.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
+	store.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
 
-	evaluationStore.On("GetEvaluationRules", mock.Anything, "foo").Return(
+	store.On("GetEvaluationRules", mock.Anything, "foo").Return(
 		[]*storage.EvaluationRule{
 			{
 				ID:               "1",
@@ -195,7 +223,7 @@ func TestEvaluate_MatchAll_NoVariants_NoDistributions(t *testing.T) {
 			},
 		}, nil)
 
-	evaluationStore.On("GetEvaluationDistributions", mock.Anything, "1").Return([]*storage.EvaluationDistribution{}, nil)
+	store.On("GetEvaluationDistributions", mock.Anything, "1").Return([]*storage.EvaluationDistribution{}, nil)
 
 	tests := []struct {
 		name      string
@@ -253,18 +281,16 @@ func TestEvaluate_MatchAll_NoVariants_NoDistributions(t *testing.T) {
 
 func TestEvaluate_MatchAll_SingleVariantDistribution(t *testing.T) {
 	var (
-		flagStore       = &flagStoreMock{}
-		evaluationStore = &evaluationStoreMock{}
-		s               = &Server{
-			logger:          logger,
-			FlagStore:       flagStore,
-			EvaluationStore: evaluationStore,
+		store = &storeMock{}
+		s     = &Server{
+			logger: logger,
+			store:  store,
 		}
 	)
 
-	flagStore.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
+	store.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
 
-	evaluationStore.On("GetEvaluationRules", mock.Anything, "foo").Return(
+	store.On("GetEvaluationRules", mock.Anything, "foo").Return(
 		[]*storage.EvaluationRule{
 			{
 				ID:               "1",
@@ -292,7 +318,7 @@ func TestEvaluate_MatchAll_SingleVariantDistribution(t *testing.T) {
 			},
 		}, nil)
 
-	evaluationStore.On("GetEvaluationDistributions", mock.Anything, "1").Return(
+	store.On("GetEvaluationDistributions", mock.Anything, "1").Return(
 		[]*storage.EvaluationDistribution{
 			{
 				ID:         "4",
@@ -381,18 +407,16 @@ func TestEvaluate_MatchAll_SingleVariantDistribution(t *testing.T) {
 
 func TestEvaluate_MatchAll_RolloutDistribution(t *testing.T) {
 	var (
-		flagStore       = &flagStoreMock{}
-		evaluationStore = &evaluationStoreMock{}
-		s               = &Server{
-			logger:          logger,
-			FlagStore:       flagStore,
-			EvaluationStore: evaluationStore,
+		store = &storeMock{}
+		s     = &Server{
+			logger: logger,
+			store:  store,
 		}
 	)
 
-	flagStore.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
+	store.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
 
-	evaluationStore.On("GetEvaluationRules", mock.Anything, "foo").Return(
+	store.On("GetEvaluationRules", mock.Anything, "foo").Return(
 		[]*storage.EvaluationRule{
 			{
 				ID:               "1",
@@ -413,7 +437,7 @@ func TestEvaluate_MatchAll_RolloutDistribution(t *testing.T) {
 			},
 		}, nil)
 
-	evaluationStore.On("GetEvaluationDistributions", mock.Anything, "1").Return(
+	store.On("GetEvaluationDistributions", mock.Anything, "1").Return(
 		[]*storage.EvaluationDistribution{
 			{
 				ID:         "4",
@@ -502,18 +526,16 @@ func TestEvaluate_MatchAll_RolloutDistribution(t *testing.T) {
 
 func TestEvaluate_MatchAll_RolloutDistribution_MultiRule(t *testing.T) {
 	var (
-		flagStore       = &flagStoreMock{}
-		evaluationStore = &evaluationStoreMock{}
-		s               = &Server{
-			logger:          logger,
-			FlagStore:       flagStore,
-			EvaluationStore: evaluationStore,
+		store = &storeMock{}
+		s     = &Server{
+			logger: logger,
+			store:  store,
 		}
 	)
 
-	flagStore.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
+	store.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
 
-	evaluationStore.On("GetEvaluationRules", mock.Anything, "foo").Return(
+	store.On("GetEvaluationRules", mock.Anything, "foo").Return(
 		[]*storage.EvaluationRule{
 			{
 				ID:               "1",
@@ -540,7 +562,7 @@ func TestEvaluate_MatchAll_RolloutDistribution_MultiRule(t *testing.T) {
 			},
 		}, nil)
 
-	evaluationStore.On("GetEvaluationDistributions", mock.Anything, "1").Return(
+	store.On("GetEvaluationDistributions", mock.Anything, "1").Return(
 		[]*storage.EvaluationDistribution{
 			{
 				ID:         "4",
@@ -577,18 +599,16 @@ func TestEvaluate_MatchAll_RolloutDistribution_MultiRule(t *testing.T) {
 
 func TestEvaluate_MatchAll_NoConstraints(t *testing.T) {
 	var (
-		flagStore       = &flagStoreMock{}
-		evaluationStore = &evaluationStoreMock{}
-		s               = &Server{
-			logger:          logger,
-			FlagStore:       flagStore,
-			EvaluationStore: evaluationStore,
+		store = &storeMock{}
+		s     = &Server{
+			logger: logger,
+			store:  store,
 		}
 	)
 
-	flagStore.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
+	store.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
 
-	evaluationStore.On("GetEvaluationRules", mock.Anything, "foo").Return(
+	store.On("GetEvaluationRules", mock.Anything, "foo").Return(
 		[]*storage.EvaluationRule{
 			{
 				ID:               "1",
@@ -599,7 +619,7 @@ func TestEvaluate_MatchAll_NoConstraints(t *testing.T) {
 			},
 		}, nil)
 
-	evaluationStore.On("GetEvaluationDistributions", mock.Anything, "1").Return(
+	store.On("GetEvaluationDistributions", mock.Anything, "1").Return(
 		[]*storage.EvaluationDistribution{
 			{
 				ID:         "4",
@@ -688,18 +708,16 @@ func TestEvaluate_MatchAll_NoConstraints(t *testing.T) {
 
 func TestEvaluate_MatchAny_NoVariants_NoDistributions(t *testing.T) {
 	var (
-		flagStore       = &flagStoreMock{}
-		evaluationStore = &evaluationStoreMock{}
-		s               = &Server{
-			logger:          logger,
-			FlagStore:       flagStore,
-			EvaluationStore: evaluationStore,
+		store = &storeMock{}
+		s     = &Server{
+			logger: logger,
+			store:  store,
 		}
 	)
 
-	flagStore.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
+	store.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
 
-	evaluationStore.On("GetEvaluationRules", mock.Anything, "foo").Return(
+	store.On("GetEvaluationRules", mock.Anything, "foo").Return(
 		[]*storage.EvaluationRule{
 			{
 				ID:               "1",
@@ -719,7 +737,7 @@ func TestEvaluate_MatchAny_NoVariants_NoDistributions(t *testing.T) {
 			},
 		}, nil)
 
-	evaluationStore.On("GetEvaluationDistributions", mock.Anything, "1").Return([]*storage.EvaluationDistribution{}, nil)
+	store.On("GetEvaluationDistributions", mock.Anything, "1").Return([]*storage.EvaluationDistribution{}, nil)
 
 	tests := []struct {
 		name      string
@@ -777,18 +795,16 @@ func TestEvaluate_MatchAny_NoVariants_NoDistributions(t *testing.T) {
 
 func TestEvaluate_MatchAny_SingleVariantDistribution(t *testing.T) {
 	var (
-		flagStore       = &flagStoreMock{}
-		evaluationStore = &evaluationStoreMock{}
-		s               = &Server{
-			logger:          logger,
-			FlagStore:       flagStore,
-			EvaluationStore: evaluationStore,
+		store = &storeMock{}
+		s     = &Server{
+			logger: logger,
+			store:  store,
 		}
 	)
 
-	flagStore.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
+	store.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
 
-	evaluationStore.On("GetEvaluationRules", mock.Anything, "foo").Return(
+	store.On("GetEvaluationRules", mock.Anything, "foo").Return(
 		[]*storage.EvaluationRule{
 			{
 				ID:               "1",
@@ -816,7 +832,7 @@ func TestEvaluate_MatchAny_SingleVariantDistribution(t *testing.T) {
 			},
 		}, nil)
 
-	evaluationStore.On("GetEvaluationDistributions", mock.Anything, "1").Return(
+	store.On("GetEvaluationDistributions", mock.Anything, "1").Return(
 		[]*storage.EvaluationDistribution{
 			{
 				ID:         "4",
@@ -939,18 +955,16 @@ func TestEvaluate_MatchAny_SingleVariantDistribution(t *testing.T) {
 
 func TestEvaluate_MatchAny_RolloutDistribution(t *testing.T) {
 	var (
-		flagStore       = &flagStoreMock{}
-		evaluationStore = &evaluationStoreMock{}
-		s               = &Server{
-			logger:          logger,
-			FlagStore:       flagStore,
-			EvaluationStore: evaluationStore,
+		store = &storeMock{}
+		s     = &Server{
+			logger: logger,
+			store:  store,
 		}
 	)
 
-	flagStore.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
+	store.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
 
-	evaluationStore.On("GetEvaluationRules", mock.Anything, "foo").Return(
+	store.On("GetEvaluationRules", mock.Anything, "foo").Return(
 		[]*storage.EvaluationRule{
 			{
 				ID:               "1",
@@ -971,7 +985,7 @@ func TestEvaluate_MatchAny_RolloutDistribution(t *testing.T) {
 			},
 		}, nil)
 
-	evaluationStore.On("GetEvaluationDistributions", mock.Anything, "1").Return(
+	store.On("GetEvaluationDistributions", mock.Anything, "1").Return(
 		[]*storage.EvaluationDistribution{
 			{
 				ID:         "4",
@@ -1060,18 +1074,16 @@ func TestEvaluate_MatchAny_RolloutDistribution(t *testing.T) {
 
 func TestEvaluate_MatchAny_RolloutDistribution_MultiRule(t *testing.T) {
 	var (
-		flagStore       = &flagStoreMock{}
-		evaluationStore = &evaluationStoreMock{}
-		s               = &Server{
-			logger:          logger,
-			FlagStore:       flagStore,
-			EvaluationStore: evaluationStore,
+		store = &storeMock{}
+		s     = &Server{
+			logger: logger,
+			store:  store,
 		}
 	)
 
-	flagStore.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
+	store.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
 
-	evaluationStore.On("GetEvaluationRules", mock.Anything, "foo").Return(
+	store.On("GetEvaluationRules", mock.Anything, "foo").Return(
 		[]*storage.EvaluationRule{
 			{
 				ID:               "1",
@@ -1098,7 +1110,7 @@ func TestEvaluate_MatchAny_RolloutDistribution_MultiRule(t *testing.T) {
 			},
 		}, nil)
 
-	evaluationStore.On("GetEvaluationDistributions", mock.Anything, "1").Return(
+	store.On("GetEvaluationDistributions", mock.Anything, "1").Return(
 		[]*storage.EvaluationDistribution{
 			{
 				ID:         "4",
@@ -1135,18 +1147,16 @@ func TestEvaluate_MatchAny_RolloutDistribution_MultiRule(t *testing.T) {
 
 func TestEvaluate_MatchAny_NoConstraints(t *testing.T) {
 	var (
-		flagStore       = &flagStoreMock{}
-		evaluationStore = &evaluationStoreMock{}
-		s               = &Server{
-			logger:          logger,
-			FlagStore:       flagStore,
-			EvaluationStore: evaluationStore,
+		store = &storeMock{}
+		s     = &Server{
+			logger: logger,
+			store:  store,
 		}
 	)
 
-	flagStore.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
+	store.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
 
-	evaluationStore.On("GetEvaluationRules", mock.Anything, "foo").Return(
+	store.On("GetEvaluationRules", mock.Anything, "foo").Return(
 		[]*storage.EvaluationRule{
 			{
 				ID:               "1",
@@ -1157,7 +1167,7 @@ func TestEvaluate_MatchAny_NoConstraints(t *testing.T) {
 			},
 		}, nil)
 
-	evaluationStore.On("GetEvaluationDistributions", mock.Anything, "1").Return(
+	store.On("GetEvaluationDistributions", mock.Anything, "1").Return(
 		[]*storage.EvaluationDistribution{
 			{
 				ID:         "4",
@@ -1246,18 +1256,16 @@ func TestEvaluate_MatchAny_NoConstraints(t *testing.T) {
 // when a 0% distribution is the first available one.
 func TestEvaluate_FirstRolloutRuleIsZero(t *testing.T) {
 	var (
-		flagStore       = &flagStoreMock{}
-		evaluationStore = &evaluationStoreMock{}
-		s               = &Server{
-			logger:          logger,
-			FlagStore:       flagStore,
-			EvaluationStore: evaluationStore,
+		store = &storeMock{}
+		s     = &Server{
+			logger: logger,
+			store:  store,
 		}
 	)
 
-	flagStore.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
+	store.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
 
-	evaluationStore.On("GetEvaluationRules", mock.Anything, "foo").Return(
+	store.On("GetEvaluationRules", mock.Anything, "foo").Return(
 		[]*storage.EvaluationRule{
 			{
 				ID:               "1",
@@ -1278,7 +1286,7 @@ func TestEvaluate_FirstRolloutRuleIsZero(t *testing.T) {
 			},
 		}, nil)
 
-	evaluationStore.On("GetEvaluationDistributions", mock.Anything, "1").Return(
+	store.On("GetEvaluationDistributions", mock.Anything, "1").Return(
 		[]*storage.EvaluationDistribution{
 			{
 				ID:         "4",
@@ -1346,18 +1354,16 @@ func TestEvaluate_FirstRolloutRuleIsZero(t *testing.T) {
 // Ensure things work properly when many rollout distributions have a 0% value.
 func TestEvaluate_MultipleZeroRolloutDistributions(t *testing.T) {
 	var (
-		flagStore       = &flagStoreMock{}
-		evaluationStore = &evaluationStoreMock{}
-		s               = &Server{
-			logger:          logger,
-			FlagStore:       flagStore,
-			EvaluationStore: evaluationStore,
+		store = &storeMock{}
+		s     = &Server{
+			logger: logger,
+			store:  store,
 		}
 	)
 
-	flagStore.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
+	store.On("GetFlag", mock.Anything, "foo").Return(enabledFlag, nil)
 
-	evaluationStore.On("GetEvaluationRules", mock.Anything, "foo").Return(
+	store.On("GetEvaluationRules", mock.Anything, "foo").Return(
 		[]*storage.EvaluationRule{
 			{
 				ID:               "1",
@@ -1378,7 +1384,7 @@ func TestEvaluate_MultipleZeroRolloutDistributions(t *testing.T) {
 			},
 		}, nil)
 
-	evaluationStore.On("GetEvaluationDistributions", mock.Anything, "1").Return(
+	store.On("GetEvaluationDistributions", mock.Anything, "1").Return(
 		[]*storage.EvaluationDistribution{
 			{
 				ID:         "1",

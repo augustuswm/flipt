@@ -11,14 +11,13 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/golang/protobuf/ptypes"
-
 	// "github.com/markphelps/flipt/errors"
 	flipt "github.com/markphelps/flipt/rpc"
 	// "github.com/markphelps/flipt/storage"
 )
 
 // Evaluate evaluates a request for a batch of flags and a single entity
-func (s *Server) BatchEvaluate(ctx context.Context, r *flipt.BatchEvaluationRequest) (*flipt.BatchEvaluationResponse, error) {
+func (s *Server) BatchEvaluateLegacy(ctx context.Context, r *flipt.BatchEvaluationRequestLegacy) (*flipt.BatchEvaluationResponseLegacy, error) {
 	s.logger.WithField("request", r).Debug("evaluate")
 	startTime := time.Now()
 
@@ -27,7 +26,7 @@ func (s *Server) BatchEvaluate(ctx context.Context, r *flipt.BatchEvaluationRequ
 		r.RequestId = uuid.Must(uuid.NewV4()).String()
 	}
 
-	resp, err := s.batchEvaluate(ctx, r)
+	resp, err := s.batchEvaluateLegacy(ctx, r)
 	if resp != nil {
 		resp.RequestDurationMillis = float64(time.Since(startTime)) / float64(time.Millisecond)
 	}
@@ -40,21 +39,21 @@ func (s *Server) BatchEvaluate(ctx context.Context, r *flipt.BatchEvaluationRequ
 	return resp, nil
 }
 
-func (s *Server) batchEvaluate(ctx context.Context, r *flipt.BatchEvaluationRequest) (*flipt.BatchEvaluationResponse, error) {
+func (s *Server) batchEvaluateLegacy(ctx context.Context, r *flipt.BatchEvaluationRequestLegacy) (*flipt.BatchEvaluationResponseLegacy, error) {
 	var (
 		ts, _ = ptypes.TimestampProto(time.Now().UTC())
-		resp  = &flipt.BatchEvaluationResponse{
+		resp  = &flipt.BatchEvaluationResponseLegacy{
 			RequestId:      r.RequestId,
 			EntityId:       r.EntityId,
 			RequestContext: r.Context,
-			Evaluations:    nil,
+			Evaluations: 		nil,
 			Timestamp:      ts,
 		}
 	)
 
 	var results []*flipt.FlagEvaluation
 
-	flags, err := s.FlagStore.GetFlags(ctx, r.FlagKeys)
+	flags, err := s.store.GetFlags(ctx, r.FlagKeys)
 
 	if err != nil {
 		return resp, err
@@ -63,9 +62,6 @@ func (s *Server) batchEvaluate(ctx context.Context, r *flipt.BatchEvaluationRequ
 	for _, flag := range flags {
 		if flag.Enabled {
 			s.logger.WithField("flag", flag).Debug("Eval Flag")
-
-			// TODO: Fix n+1 - evaluate requires up to 2 additional queries
-			// 1 query for matching rules, and 1 for distributions if a rule is found
 			eval, err := s.evaluateFlag(ctx, r.EntityId, r.Context, flag)
 
 			if err != nil {
@@ -81,4 +77,4 @@ func (s *Server) batchEvaluate(ctx context.Context, r *flipt.BatchEvaluationRequ
 	resp.Evaluations = results
 
 	return resp, nil
-}
+} 

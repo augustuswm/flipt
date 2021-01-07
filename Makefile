@@ -7,16 +7,8 @@ TEST_PATTERN ?= .
 TEST_OPTS ?=
 TEST_FLAGS ?= -v
 
-TOOLS = \
-	"github.com/gobuffalo/packr/packr" \
-	"github.com/golang/protobuf/protoc-gen-go" \
-	"github.com/golangci/golangci-lint/cmd/golangci-lint" \
-	"github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway" \
-	"github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger" \
-	"golang.org/x/tools/cmd/cover" \
-	"golang.org/x/tools/cmd/goimports" \
-	"google.golang.org/grpc" \
-	"github.com/buchanae/github-release-notes" \
+GOBIN = _tools/bin
+export PATH := $(GOBIN):$(PATH)
 
 UI_PATH = ui
 UI_SOURCE_FILES = $(wildcard $(UI_PATH)/static/* $(UI_PATH)/src/**/* $(UI_PATH)/src/**/**/* $(UI_PATH)/index.html)
@@ -29,10 +21,11 @@ $(UI_NODE_MODULES_PATH): $(UI_PATH)/package.json $(UI_PATH)/yarn.lock
 $(UI_OUTPUT_PATH): $(UI_NODE_MODULES_PATH) $(UI_SOURCE_FILES)
 	@cd $(UI_PATH) && yarn build
 
-.PHONY: setup
-setup: ## Install dev tools
+.PHONY: bootstrap
+bootstrap: ## Install dev tools
 	@echo ">> installing dev tools"
-	go install -v $(TOOLS)
+	go get -u -v "github.com/golang/protobuf/protoc-gen-go@v1.4.2"
+	@./script/bootstrap
 
 .PHONY: bench
 bench: ## Run all the benchmarks
@@ -57,6 +50,7 @@ fmt: ## Run gofmt and goimports on all go files
 .PHONY: lint
 lint: ## Run all the linters
 	@echo ">> running golangci-lint"
+	@golangci-lint version
 	golangci-lint run
 
 .PHONY: clean
@@ -65,22 +59,18 @@ clean: ## Cleanup generated files
 	go clean -i $(SOURCE_FILES)
 	packr clean
 	rm -rf dist/*
+	go mod tidy
 
 .PHONY: proto
 proto: ## Build protobufs
 	@echo ">> generating protobufs"
 	protoc -I/usr/local/include -I. \
 		-Irpc \
-		--go_out=plugins=grpc:./rpc \
+		--go_out=./rpc \
+		--go-grpc_out=./rpc \
 		--grpc-gateway_out=logtostderr=true,grpc_api_configuration=./rpc/flipt.yaml:./rpc \
 		--swagger_out=logtostderr=true,grpc_api_configuration=./rpc/flipt.yaml:./swagger \
 		$(PROJECT).proto
-	protoc -I/usr/local/include -I. \
-		-Irpc \
-		--go_out=plugins=grpc:./rpc \
-		--grpc-gateway_out=logtostderr=true,grpc_api_configuration=./rpc/flipt_evaluator.yaml:./rpc \
-		--swagger_out=logtostderr=true,grpc_api_configuration=./rpc/flipt_evaluator.yaml:./swagger \
-		$(PROJECT)_evaluator.proto
 
 .PHONY: assets
 assets: $(UI_OUTPUT_PATH) ## Build the ui
@@ -103,17 +93,17 @@ dev: clean assets ## Build and run in development mode
 .PHONY: snapshot
 snapshot: clean assets pack ## Build a snapshot version
 	@echo ">> building a snapshot version"
-	@./script/build/snapshot
+	@./script/build snapshot
 
 .PHONY: release
 release: clean assets pack ## Build and publish a release
 	@echo ">> building and publishing a release"
-	@./script/build/release
+	@./script/build release
 
 .PHONY: clients
 clients: ## Generate GRPC clients
-	@echo ">> generating clients"
-	@./script/build/clients
+	@echo ">> generating GRPC clients"
+	@./script/build clients
 
 .PHONY: help
 help:

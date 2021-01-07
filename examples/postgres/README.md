@@ -5,7 +5,7 @@ This example shows how you can run Flipt with a Postgres database over the defau
 This works by setting the environment variable `FLIPT_DB_URL` to point to the Postgres database running in a container:
 
 ```bash
-FLIPT_DB_URL=postgres://postgres@postgres:5432/flipt?sslmode=disable
+FLIPT_DB_URL=postgres://postgres:password@postgres:5432/flipt?sslmode=disable
 ```
 
 ## Requirements

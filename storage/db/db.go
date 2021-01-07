@@ -5,53 +5,75 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"net/url"
-	"time"
 
-	"github.com/golang/protobuf/ptypes"
-	proto "github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/go-sql-driver/mysql"
+	"github.com/lib/pq"
+	"github.com/luna-duclos/instrumentedsql"
+	"github.com/luna-duclos/instrumentedsql/opentracing"
+	"github.com/markphelps/flipt/config"
+	"github.com/mattn/go-sqlite3"
+	"github.com/xo/dburl"
 )
 
-type timestamp struct {
-	*proto.Timestamp
+// Open opens a connection to the db
+func Open(cfg config.Config) (*sql.DB, Driver, error) {
+	sql, driver, err := open(cfg, false)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	sql.SetMaxIdleConns(cfg.Database.MaxIdleConn)
+
+	if cfg.Database.MaxOpenConn > 0 {
+		sql.SetMaxOpenConns(cfg.Database.MaxOpenConn)
+	}
+	if cfg.Database.ConnMaxLifetime > 0 {
+		sql.SetConnMaxLifetime(cfg.Database.ConnMaxLifetime)
+	}
+
+	registerMetrics(driver, sql)
+
+	return sql, driver, nil
 }
 
-func (t *timestamp) Scan(value interface{}) error {
-	if v, ok := value.(time.Time); ok {
-		val, err := ptypes.TimestampProto(v)
-		if err != nil {
-			return err
+func open(cfg config.Config, migrate bool) (*sql.DB, Driver, error) {
+	d, url, err := parse(cfg, migrate)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	driverName := fmt.Sprintf("instrumented-%s", d)
+
+	var dr driver.Driver
+
+	switch d {
+	case SQLite:
+		dr = &sqlite3.SQLiteDriver{}
+	case Postgres:
+		dr = &pq.Driver{}
+	case MySQL:
+		dr = &mysql.MySQLDriver{}
+	}
+
+	registered := false
+
+	for _, dd := range sql.Drivers() {
+		if dd == driverName {
+			registered = true
+			break
 		}
-
-		t.Timestamp = val
 	}
 
-	return nil
-}
+	if !registered {
+		sql.Register(driverName, instrumentedsql.WrapDriver(dr, instrumentedsql.WithTracer(opentracing.NewTracer(false))))
+	}
 
-func (t *timestamp) Value() (driver.Value, error) {
-	return ptypes.Timestamp(t.Timestamp)
-}
-
-const (
-	pgConstraintForeignKey = "foreign_key_violation"
-	pgConstraintUnique     = "unique_violation"
-)
-
-// Open opens a connection to the db given a URL
-func Open(url string) (*sql.DB, Driver, error) {
-	driver, u, err := parse(url)
+	db, err := sql.Open(driverName, url.DSN)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, fmt.Errorf("opening db for driver: %s %w", d, err)
 	}
 
-	conn := toConnString(u, driver)
-	db, err := sql.Open(driver.String(), conn)
-
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return db, driver, nil
+	return db, d, nil
 }
 
 var (
@@ -61,14 +83,14 @@ var (
 		MySQL:    "mysql",
 	}
 
-	schemeToDriver = map[string]Driver{
-		"file":     SQLite,
+	stringToDriver = map[string]Driver{
+		"sqlite3":  SQLite,
 		"postgres": Postgres,
 		"mysql":    MySQL,
 	}
 )
 
-// Driver represents a database driver type
+// Driver represents a database driver
 type Driver uint8
 
 func (d Driver) String() string {
@@ -85,31 +107,68 @@ const (
 	MySQL
 )
 
-func parse(in string) (Driver, *url.URL, error) {
-	u, err := url.Parse(in)
+func parse(cfg config.Config, migrate bool) (Driver, *dburl.URL, error) {
+	u := cfg.Database.URL
+
+	if u == "" {
+		host := cfg.Database.Host
+
+		if cfg.Database.Port > 0 {
+			host = fmt.Sprintf("%s:%d", host, cfg.Database.Port)
+		}
+
+		uu := url.URL{
+			Scheme: cfg.Database.Protocol.String(),
+			Host:   host,
+			Path:   cfg.Database.Name,
+		}
+
+		if cfg.Database.User != "" {
+			if cfg.Database.Password != "" {
+				uu.User = url.UserPassword(cfg.Database.User, cfg.Database.Password)
+			} else {
+				uu.User = url.User(cfg.Database.User)
+			}
+		}
+
+		u = uu.String()
+	}
+
+	errURL := func(rawurl string, err error) error {
+		return fmt.Errorf("error parsing url: %q, %w", rawurl, err)
+	}
+
+	url, err := dburl.Parse(u)
 	if err != nil {
-		return 0, u, fmt.Errorf("parsing url: %q: %w", in, err)
+		return 0, nil, errURL(u, err)
 	}
 
-	driver := schemeToDriver[u.Scheme]
+	driver := stringToDriver[url.Driver]
 	if driver == 0 {
-		return 0, u, fmt.Errorf("unknown database driver for: %s", u.Scheme)
+		return 0, nil, fmt.Errorf("unknown database driver for: %q", url.Driver)
 	}
 
-	if driver == SQLite {
-		v := u.Query()
+	switch driver {
+	case MySQL:
+		v := url.Query()
+		v.Set("multiStatements", "true")
+		v.Set("parseTime", "true")
+		if !migrate {
+			v.Set("sql_mode", "ANSI")
+		}
+		url.RawQuery = v.Encode()
+		// we need to re-parse since we modified the query params
+		url, err = dburl.Parse(url.URL.String())
+
+	case SQLite:
+		v := url.Query()
 		v.Set("cache", "shared")
 		v.Set("_fk", "true")
-		u.RawQuery = v.Encode()
+		url.RawQuery = v.Encode()
+
+		// we need to re-parse since we modified the query params
+		url, err = dburl.Parse(url.URL.String())
 	}
 
-	return driver, u, nil
-}
-
-func toConnString(u *url.URL, driver Driver) (conn string) {
-	if driver == MySQL {
-		return fmt.Sprintf("%v@tcp(%v)%v?%v", u.User.String(), u.Host, u.Path, u.RawQuery)
-	}
-
-	return u.String()
+	return driver, url, err
 }

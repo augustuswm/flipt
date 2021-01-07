@@ -2,35 +2,19 @@ package server
 
 import (
 	"context"
-	"database/sql"
 	"testing"
 
 	"github.com/markphelps/flipt/errors"
 
-	sq "github.com/Masterminds/squirrel"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	"github.com/markphelps/flipt/storage/db"
 )
 
 var logger, _ = test.NewNullLogger()
-
-func TestNew(t *testing.T) {
-	var (
-		builder = sq.StatementBuilderType{}
-		sql     = new(sql.DB)
-	)
-
-	conn := db.NewConn(builder, sql, db.SQLite)
-
-	server := New(logger, conn)
-	assert.NotNil(t, server)
-}
 
 type validatable struct {
 	err error

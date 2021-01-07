@@ -2,7 +2,7 @@
 	<img src="logo.svg" alt="Flipt" width=200 height=200 />
 </p>
 
-<p align="center">A modern feature flag solution</p>
+<p align="center">An open-source, on-prem feature flag solution</p>
 
 <hr />
 
@@ -34,18 +34,23 @@
 
 <div align="center">
     <h4>
-        <a href="https://flipt.io/">Documentation</a> |
+        <a href="https://flipt.io/docs/getting_started/">Documentation</a> |
         <a href="#features">Features</a> |
         <a href="#values">Values</a> |
-        <a href="#usecases">Usecases</a> |
         <a href="#examples">Examples</a> |
         <a href="#enterprise">Enterprise</a>
     </h4>
 </div>
 
-Flipt is an on-prem flag application that allows you to run experiments across services in **your** environment.
+Flipt is an open source, on-prem feature flag application that allows you to run experiments across services in **your** environment.
 
 Flipt can be deployed within your existing infrastructure so that you don't have to worry about your information being sent to a third party or the latency required to communicate across the internet.
+
+Flipt supports use cases such as:
+
+* Simple on/off feature flags to toggle functionality in your applications
+* Rolling out features to a percentage of your customers
+* Using advanced segmentation to target and serve users based on custom properties that you define
 
 ## Features
 
@@ -55,7 +60,7 @@ Flipt can be deployed within your existing infrastructure so that you don't have
 * Native [GRPC](https://grpc.io/) client SDKs to integrate with your applications
 * Simple REST API
 * Modern UI and debug console
-* Support for multiple databases
+* Support for multiple databases (Postgres, MySQL, SQLite)
 * Data import and export to allow storing your flags as code
 
 ## Values
@@ -64,12 +69,7 @@ Flipt can be deployed within your existing infrastructure so that you don't have
 * :rocket: **Speed** - Since Flipt is co-located with your existing services, you do not have to communicate across the internet which can add excessive latency and slow down your applications.
 * :white_check_mark: **Simplicity** - Flipt is a single binary with no external dependencies by default.
 * :no_entry: **Privacy** - No telemetry data is collected or sent by Flipt. Ever.
-
-## Usecases
-
-* Use simple on/off feature flags to toggle functionality in your applications
-* Rollout features to a subset of your audience
-* Use advanced segmentation to target and serve users based on custom properties that you define
+* :thumbsup: **Compatability** - REST, GRPC, MySQL, Postgres, SQLite.. Flipt supports it all.
 
 ## Examples
 
@@ -79,21 +79,32 @@ Here's a [basic one](https://github.com/markphelps/flipt/tree/master/examples/ba
 
 ## Try It
 
-[![Try in PWD](https://raw.githubusercontent.com/play-with-docker/stacks/master/assets/images/button.png)](https://labs.play-with-docker.com/?stack=https://raw.githubusercontent.com/markphelps/flipt/master/docker-compose.yml)
+![Flipt Docker](cli.gif)
 
 Try Flipt out yourself with Docker:
 
 ```bash
-❯ docker run --rm -p 8080:8080 -p 9000:9000 markphelps/flipt:latest
+❯ docker run --rm -p 8080:8080 -p 9000:9000 -t markphelps/flipt:latest
 ```
 
 Flipt UI will now be reachable at [http://localhost:8080/](http://localhost:8080).
 
 For more permanent methods of running Flipt, see the [Installation](https://flipt.io/docs/installation/) section.
 
-### :warning: Beta Software :warning:
+### Snapshot Versions
 
-Flipt is still considered beta software until the 1.0.0 release. This means that there are likely bugs and features/configuration may change between releases. Attempts will be made to maintain backwards compatibility whenever possible.
+Like to live dangerously? Want to try out the latest **unreleased** changes in Flipt? Now you can!
+
+Run the latest **snapshot** version of Flipt, which is built directly from the `master` branch:
+
+```bash
+❯ docker run --rm -p 8080:8080 -p 9000:9000 -t markphelps/flipt:snapshot
+```
+
+## GRPC Clients
+
+* [Go](https://github.com/markphelps/flipt-grpc-go)
+* [Ruby](https://github.com/markphelps/flipt-grpc-ruby)
 
 ## Licensing
 
@@ -136,7 +147,7 @@ Please help me prioritize an Enterprise version of Flipt by filling out this [sh
 
 ## Contributing
 
-I would love your help! Before submitting a PR, please read over the [Contributing](.github/contributing) guide.
+I would love your help! Before submitting a PR, please read over the [Contributing](.github/contributing.md) guide.
 
 No contribution is too small, whether it be bug reports/fixes, feature requests, documentation updates, or anything else that can help drive the project forward.
 
@@ -156,6 +167,10 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="http://sf.khepin.com"><img src="https://avatars3.githubusercontent.com/u/455656?v=4" width="100px;" alt=""/><br /><sub><b>Sebastien Armand</b></sub></a><br /><a href="https://github.com/markphelps/flipt/commits?author=khepin" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/badboyd"><img src="https://avatars0.githubusercontent.com/u/20040686?v=4" width="100px;" alt=""/><br /><sub><b>Dat Tran</b></sub></a><br /><a href="https://github.com/markphelps/flipt/commits?author=badboyd" title="Code">💻</a></td>
     <td align="center"><a href="http://twitter.com/jon_perl"><img src="https://avatars2.githubusercontent.com/u/1136652?v=4" width="100px;" alt=""/><br /><sub><b>Jon Perl</b></sub></a><br /><a href="https://github.com/markphelps/flipt/commits?author=jperl" title="Tests">⚠️</a> <a href="https://github.com/markphelps/flipt/commits?author=jperl" title="Code">💻</a></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="https://or-e.net"><img src="https://avatars1.githubusercontent.com/u/2883824?v=4" width="100px;" alt=""/><br /><sub><b>Or Elimelech</b></sub></a><br /><a href="https://github.com/markphelps/flipt/commits?author=vic3lord" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/giddel"><img src="https://avatars0.githubusercontent.com/u/10463018?v=4" width="100px;" alt=""/><br /><sub><b>giddel</b></sub></a><br /><a href="https://github.com/markphelps/flipt/commits?author=giddel" title="Code">💻</a></td>
   </tr>
 </table>
 

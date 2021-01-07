@@ -8,19 +8,20 @@ Before starting, make sure you have the following installed:
 
 * GCC Compiler
 * [SQLite](https://sqlite.org/index.html)
-* [Go 1.13+](https://golang.org/doc/install)
+* [Go 1.15+](https://golang.org/doc/install)
 * [Protoc Compiler](https://github.com/protocolbuffers/protobuf)
 
 ## Setup
 
 1. Clone this repo: `git clone https://github.com/markphelps/flipt`
+1. Run `make bootstrap` to install required development tools
 1. Run `make test` to execute the test suite
 1. Run `make dev` to build and run in development mode
 1. Run `make help` to see a full list of possible make commands
 
 ## Go
 
-Flipt is built with Go 1.13+. To reliably build Flipt, make sure you clone it to a location outside of your `$GOPATH` or set the environment variable `GO111MODULE=on`. For more info see: [https://github.com/golang/go/wiki/Modules#how-to-install-and-activate-module-support](https://github.com/golang/go/wiki/Modules#how-to-install-and-activate-module-support).
+Flipt is built with Go 1.15+. To reliably build Flipt, make sure you clone it to a location outside of your `$GOPATH`.
 
 ## Configuration
 

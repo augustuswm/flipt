@@ -6,34 +6,26 @@ on:
       - '.all-contributorsrc'
 
 jobs:
-
   ## Lint
-  lint:
+  golangci:
     name: Lint
     runs-on: ubuntu-latest
-
     steps:
-    - name: Setup Go
-      uses: actions/setup-go@v1
-      with:
-        go-version: 1.13.7
-      id: go
+      - uses: actions/checkout@v2
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          # Required: the version of golangci-lint is required and must be specified without patch version: we always use the latest patch version.
+          version: v1.33
 
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v2
+          # Optional: working directory, useful for monorepos
+          # working-directory: somedir
 
-    - name: Restore Cache
-      uses: actions/cache@v1
-      id: cache
-      with:
-        path: ~/go/pkg/mod
-        key: ${{ runner.os }}-${{ hashFiles('**/go.sum') }}
+          # Optional: golangci-lint command line arguments.
+          # args: --issues-exit-code=0
 
-    - name: Install golangci-lint
-      run: curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s v1.23.1
-
-    - name: Lint
-      run: ./bin/golangci-lint run
+          # Optional: show only new issues if it's a pull request. The default value is `false`.
+          # only-new-issues: true
 
   ## Unit Tests
   test:
@@ -42,9 +34,9 @@ jobs:
 
     steps:
     - name: Setup Go
-      uses: actions/setup-go@v1
+      uses: actions/setup-go@v2
       with:
-        go-version: 1.13.7
+        go-version: '1.15.x'
       id: go
 
     - name: Checkout
@@ -61,7 +53,7 @@ jobs:
       run: go test -covermode=count -coverprofile=coverage.txt -count=1 ./...
 
     - name: Coverage
-      if: github.repository == 'markphelps/flipt' # don't run coverage on forks since secrets are not copied to forked repos
+      if: github.repository == 'markphelps/flipt' # don't run on forks since secrets are not copied to forked repos
       env:
         CI_BRANCH: ${{ github.ref }}
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

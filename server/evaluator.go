@@ -39,6 +39,49 @@ func (s *Server) Evaluate(ctx context.Context, r *flipt.EvaluationRequest) (*fli
 	return resp, nil
 }
 
+// BatchEvaluate evaluates a request for multiple flags and entities
+func (s *Server) BatchEvaluate(ctx context.Context, r *flipt.BatchEvaluationRequest) (*flipt.BatchEvaluationResponse, error) {
+	s.logger.WithField("request", r).Debug("batch-evaluate")
+	startTime := time.Now()
+
+	// set request ID if not present
+	if r.RequestId == "" {
+		r.RequestId = uuid.Must(uuid.NewV4()).String()
+	}
+
+	resp, err := s.batchEvaluate(ctx, r)
+	if resp != nil {
+		resp.RequestDurationMillis = float64(time.Since(startTime)) / float64(time.Millisecond)
+	}
+
+	if err != nil {
+		return resp, err
+	}
+
+	s.logger.WithField("response", resp).Debug("batch-evaluate")
+	return resp, nil
+}
+
+func (s *Server) batchEvaluate(ctx context.Context, r *flipt.BatchEvaluationRequest) (*flipt.BatchEvaluationResponse, error) {
+	startTime := time.Now()
+	res := flipt.BatchEvaluationResponse{
+		RequestId: r.RequestId,
+		Responses: make([]*flipt.EvaluationResponse, 0, len(r.GetRequests())),
+	}
+
+	for _, flag := range r.GetRequests() {
+		f, err := s.evaluate(ctx, flag)
+		if err != nil {
+			return nil, err
+		}
+		f.RequestId = ""
+		f.RequestDurationMillis = float64(time.Since(startTime)) / float64(time.Millisecond)
+		res.Responses = append(res.Responses, f)
+	}
+
+	return &res, nil
+}
+
 func (s *Server) evaluate(ctx context.Context, r *flipt.EvaluationRequest) (*flipt.EvaluationResponse, error) {
 	var (
 		ts, _ = ptypes.TimestampProto(time.Now().UTC())
@@ -51,7 +94,7 @@ func (s *Server) evaluate(ctx context.Context, r *flipt.EvaluationRequest) (*fli
 		}
 	)
 
-	flag, err := s.FlagStore.GetFlag(ctx, r.FlagKey)
+	flag, err := s.store.GetFlag(ctx, r.FlagKey)
 	if err != nil {
 		return resp, err
 	}
@@ -73,14 +116,14 @@ func (s *Server) evaluate(ctx context.Context, r *flipt.EvaluationRequest) (*fli
 	return resp, nil
 }
 
-func (s *Server) evaluateFlag(ctx context.Context, entityId string, reqCtx map[string]string, flag *flipt.Flag) (*flipt.FlagEvaluation, error) {
+func (s *Server) evaluateFlag(ctx context.Context, entityID string, reqCtx map[string]string, flag *flipt.Flag) (*flipt.FlagEvaluation, error) {
 	var (
 		resp = &flipt.FlagEvaluation{
 			FlagKey: flag.Key,
 		}
 	)
 
-	rules, err := s.EvaluationStore.GetEvaluationRules(ctx, flag.Key)
+	rules, err := s.store.GetEvaluationRules(ctx, flag.Key)
 	if err != nil {
 		return resp, err
 	}
@@ -178,7 +221,7 @@ func (s *Server) evaluateFlag(ctx context.Context, entityId string, reqCtx map[s
 		// based on the distributions
 		resp.SegmentKey = rule.SegmentKey
 
-		distributions, err := s.EvaluationStore.GetEvaluationDistributions(ctx, rule.ID)
+		distributions, err := s.store.GetEvaluationDistributions(ctx, rule.ID)
 		if err != nil {
 			return resp, err
 		}
@@ -211,7 +254,7 @@ func (s *Server) evaluateFlag(ctx context.Context, entityId string, reqCtx map[s
 		}
 
 		var (
-			bucket = crc32Num(entityId, flag.Key)
+			bucket = crc32Num(entityID, flag.Key)
 			// sort.SearchInts searches for x in a sorted slice of ints and returns the index
 			// as specified by Search. The return value is the index to insert x if x is
 			// not present (it could be len(a)).

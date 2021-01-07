@@ -4,18 +4,25 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
 
-	sq "github.com/Masterminds/squirrel"
 	flipt "github.com/markphelps/flipt/rpc"
+	"github.com/markphelps/flipt/storage"
 	"github.com/markphelps/flipt/storage/db"
+	"github.com/markphelps/flipt/storage/db/mysql"
+	"github.com/markphelps/flipt/storage/db/postgres"
+	"github.com/markphelps/flipt/storage/db/sqlite"
 	"gopkg.in/yaml.v2"
 )
 
-var dropBeforeImport bool
+var (
+	dropBeforeImport bool
+	importStdin      bool
+)
 
 func runImport(args []string) error {
 	ctx := context.Background()
@@ -31,47 +38,47 @@ func runImport(args []string) error {
 		cancel()
 	}()
 
-	sql, driver, err := db.Open(cfg.Database.URL)
+	sql, driver, err := db.Open(*cfg)
 	if err != nil {
 		return fmt.Errorf("opening db: %w", err)
 	}
 
 	defer sql.Close()
 
-	var (
-		builder    sq.StatementBuilderType
-		stmtCacher = sq.NewStmtCacher(sql)
-	)
+	var store storage.Store
 
 	switch driver {
 	case db.SQLite:
-		builder = sq.StatementBuilder.RunWith(stmtCacher)
-
+		store = sqlite.NewStore(sql)
 	case db.Postgres:
-		builder = sq.StatementBuilder.PlaceholderFormat(sq.Dollar).RunWith(stmtCacher)
+		store = postgres.NewStore(sql)
 	case db.MySQL:
-		builder = sq.StatementBuilder.RunWith(stmtCacher)
+		store = mysql.NewStore(sql)
 	}
 
-	importFilename := args[0]
-	if importFilename == "" {
-		return errors.New("import filename required")
-	}
+	var in io.ReadCloser = os.Stdin
 
-	f := filepath.Clean(importFilename)
+	if !importStdin {
+		importFilename := args[0]
+		if importFilename == "" {
+			return errors.New("import filename required")
+		}
 
-	logger.Debugf("importing from %q", f)
+		f := filepath.Clean(importFilename)
 
-	in, err := os.Open(f)
-	if err != nil {
-		return fmt.Errorf("opening import file: %w", err)
+		l.Debugf("importing from %q", f)
+
+		in, err = os.Open(f)
+		if err != nil {
+			return fmt.Errorf("opening import file: %w", err)
+		}
 	}
 
 	defer in.Close()
 
 	// drop tables if specified
 	if dropBeforeImport {
-		logger.Debug("dropping tables before import")
+		l.Debug("dropping tables before import")
 
 		tables := []string{"schema_migrations", "distributions", "rules", "constraints", "variants", "segments", "flags"}
 
@@ -82,53 +89,20 @@ func runImport(args []string) error {
 		}
 	}
 
-	migrator, err := db.NewMigrator(cfg)
+	migrator, err := db.NewMigrator(*cfg, l)
 	if err != nil {
 		return err
 	}
 
 	defer migrator.Close()
 
-	canAutoMigrate := false
-
-	// check if any migrations are pending
-	currentVersion, err := migrator.CurrentVersion()
-	if err != nil {
-		// if first run then it's safe to migrate
-		if err == db.ErrMigrationsNilVersion {
-			canAutoMigrate = true
-		} else {
-			return fmt.Errorf("checking migration status: %w", err)
-		}
-	}
-
-	if currentVersion < expectedMigrationVersion {
-		logger.Debugf("migrations pending: [current version=%d, want version=%d]", currentVersion, expectedMigrationVersion)
-
-		if !canAutoMigrate {
-			return errors.New("migrations pending, please backup your database and run `flipt migrate`")
-		}
-
-		logger.Debug("running migrations...")
-
-		if err := migrator.Run(); err != nil {
-			return err
-		}
-
-		logger.Debug("finished migrations")
-	} else {
-		logger.Debug("migrations up to date")
+	if err := migrator.Run(forceMigrate); err != nil {
+		return err
 	}
 
 	migrator.Close()
 
-	conn := db.NewConn(builder, sql, driver)
-
 	var (
-		flagStore    = db.NewFlagStore(conn)
-		segmentStore = db.NewSegmentStore(conn)
-		ruleStore    = db.NewRuleStore(conn)
-
 		dec = yaml.NewDecoder(in)
 		doc = new(Document)
 	)
@@ -148,7 +122,7 @@ func runImport(args []string) error {
 
 	// create flags/variants
 	for _, f := range doc.Flags {
-		flag, err := flagStore.CreateFlag(ctx, &flipt.CreateFlagRequest{
+		flag, err := store.CreateFlag(ctx, &flipt.CreateFlagRequest{
 			Key:         f.Key,
 			Name:        f.Name,
 			Description: f.Description,
@@ -160,7 +134,7 @@ func runImport(args []string) error {
 		}
 
 		for _, v := range f.Variants {
-			variant, err := flagStore.CreateVariant(ctx, &flipt.CreateVariantRequest{
+			variant, err := store.CreateVariant(ctx, &flipt.CreateVariantRequest{
 				FlagKey:     f.Key,
 				Key:         v.Key,
 				Name:        v.Name,
@@ -179,7 +153,7 @@ func runImport(args []string) error {
 
 	// create segments/constraints
 	for _, s := range doc.Segments {
-		segment, err := segmentStore.CreateSegment(ctx, &flipt.CreateSegmentRequest{
+		segment, err := store.CreateSegment(ctx, &flipt.CreateSegmentRequest{
 			Key:         s.Key,
 			Name:        s.Name,
 			Description: s.Description,
@@ -190,7 +164,7 @@ func runImport(args []string) error {
 		}
 
 		for _, c := range s.Constraints {
-			_, err := segmentStore.CreateConstraint(ctx, &flipt.CreateConstraintRequest{
+			_, err := store.CreateConstraint(ctx, &flipt.CreateConstraintRequest{
 				SegmentKey: s.Key,
 				Type:       flipt.ComparisonType(flipt.ComparisonType_value[c.Type]),
 				Property:   c.Property,
@@ -210,7 +184,7 @@ func runImport(args []string) error {
 	for _, f := range doc.Flags {
 		// loop through rules
 		for _, r := range f.Rules {
-			rule, err := ruleStore.CreateRule(ctx, &flipt.CreateRuleRequest{
+			rule, err := store.CreateRule(ctx, &flipt.CreateRuleRequest{
 				FlagKey:    f.Key,
 				SegmentKey: r.SegmentKey,
 				Rank:       int32(r.Rank),
@@ -226,7 +200,7 @@ func runImport(args []string) error {
 					return fmt.Errorf("finding variant: %s; flag: %s", d.VariantKey, f.Key)
 				}
 
-				_, err := ruleStore.CreateDistribution(ctx, &flipt.CreateDistributionRequest{
+				_, err := store.CreateDistribution(ctx, &flipt.CreateDistributionRequest{
 					FlagKey:   f.Key,
 					RuleId:    rule.Id,
 					VariantId: variant.Id,

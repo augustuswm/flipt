@@ -2,13 +2,11 @@ package server
 
 import (
 	"context"
+	"errors"
 
-	"github.com/markphelps/flipt/errors"
+	errs "github.com/markphelps/flipt/errors"
 	flipt "github.com/markphelps/flipt/rpc"
-	pb "github.com/markphelps/flipt/rpc"
 	"github.com/markphelps/flipt/storage"
-	"github.com/markphelps/flipt/storage/cache"
-	"github.com/markphelps/flipt/storage/db"
 
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -16,46 +14,28 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-var _ pb.FliptServer = &Server{}
+var _ flipt.FliptServer = &Server{}
+
+type Option func(s *Server)
 
 // Server serves the Flipt backend
 type Server struct {
 	logger logrus.FieldLogger
-	cache  cache.Cacher
 
-	storage.FlagStore
-	storage.SegmentStore
-	storage.RuleStore
-	storage.EvaluationStore
+	store storage.Store
 }
 
 // New creates a new Server
-func New(logger logrus.FieldLogger, conn *db.Conn, opts ...Option) *Server {
+func New(logger logrus.FieldLogger, store storage.Store, opts ...Option) *Server {
 	var (
-		flagStore       = db.NewFlagStore(conn)
-		segmentStore    = db.NewSegmentStore(conn)
-		ruleStore       = db.NewRuleStore(conn)
-		evaluationStore = db.NewEvaluationStore(conn)
-
 		s = &Server{
-			logger:          logger,
-			FlagStore:       flagStore,
-			SegmentStore:    segmentStore,
-			RuleStore:       ruleStore,
-			EvaluationStore: evaluationStore,
+			logger: logger,
+			store:  store,
 		}
 	)
 
-	for _, opt := range opts {
-		opt(s)
-	}
-
-	if s.cache != nil {
-		// wrap stores with caches
-		s.FlagStore = cache.NewFlagCache(logger, s.cache, flagStore)
-		s.SegmentStore = cache.NewSegmentCache(logger, s.cache, segmentStore)
-		s.RuleStore = cache.NewRuleCache(logger, s.cache, ruleStore)
-		s.EvaluationStore = cache.NewEvaluationCache(logger, s.cache, evaluationStore)
+	for _, fn := range opts {
+		fn(s)
 	}
 
 	return s
@@ -81,16 +61,24 @@ func (s *Server) ErrorUnaryInterceptor(ctx context.Context, req interface{}, _ *
 
 	errorsTotal.Inc()
 
-	switch err.(type) {
-	case errors.ErrNotFound:
+	var errnf errs.ErrNotFound
+	if errors.As(err, &errnf) {
 		err = status.Error(codes.NotFound, err.Error())
-	case errors.ErrInvalid:
-		err = status.Error(codes.InvalidArgument, err.Error())
-	case errors.ErrValidation:
-		err = status.Error(codes.InvalidArgument, err.Error())
-	default:
-		err = status.Error(codes.Internal, err.Error())
+		return
 	}
 
+	var errin errs.ErrInvalid
+	if errors.As(err, &errin) {
+		err = status.Error(codes.InvalidArgument, err.Error())
+		return
+	}
+
+	var errv errs.ErrValidation
+	if errors.As(err, &errv) {
+		err = status.Error(codes.InvalidArgument, err.Error())
+		return
+	}
+
+	err = status.Error(codes.Internal, err.Error())
 	return
 }
