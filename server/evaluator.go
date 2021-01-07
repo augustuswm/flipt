@@ -116,7 +116,7 @@ func (s *Server) evaluate(ctx context.Context, r *flipt.EvaluationRequest) (*fli
 	return resp, nil
 }
 
-func (s *Server) evaluateFlag(ctx context.Context, entityId string, reqCtx map[string]string, flag *flipt.Flag) (*flipt.FlagEvaluation, error) {
+func (s *Server) evaluateFlag(ctx context.Context, entityID string, reqCtx map[string]string, flag *flipt.Flag) (*flipt.FlagEvaluation, error) {
 	var (
 		resp = &flipt.FlagEvaluation{
 			FlagKey: flag.Key,
@@ -254,7 +254,7 @@ func (s *Server) evaluateFlag(ctx context.Context, entityId string, reqCtx map[s
 		}
 
 		var (
-			bucket = crc32Num(entityId, flag.Key)
+			bucket = crc32Num(entityID, flag.Key)
 			// sort.SearchInts searches for x in a sorted slice of ints and returns the index
 			// as specified by Search. The return value is the index to insert x if x is
 			// not present (it could be len(a)).
