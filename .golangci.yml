@@ -40,7 +40,6 @@ linters:
     - govet
     - ineffassign
     - interfacer
-    - maligned
     - megacheck
     - misspell
     - staticcheck
@@ -50,6 +49,7 @@ linters:
     - unparam
     - varcheck
   disable:
+    - exhaustive
     - rowserrcheck
   enable-all: false
   presets:

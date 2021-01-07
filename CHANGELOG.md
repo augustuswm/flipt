@@ -3,6 +3,86 @@
 This format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.0.0](https://github.com/markphelps/flipt/releases/tag/v1.0.0) - 2020-10-31
+
+Happy Halloween! Flipt goes 1.0.0 today! :jack_o_lantern:
+
+### Changed
+
+* Bumped dependencies
+* Upgrade to Go 1.15
+
+## [v0.18.1](https://github.com/markphelps/flipt/releases/tag/v0.18.1) - 2020-09-30
+
+### Added
+
+* Reflection to grpc server for usage with generic clients [https://github.com/markphelps/flipt/pull/345](https://github.com/markphelps/flipt/pull/345)
+
+### Changed
+
+* Bumped dependencies
+* Added colorful output for new version available instead of normal log message
+* Publishing Docker images to [ghcr.io](https://docs.github.com/en/free-pro-team@latest/packages/getting-started-with-github-container-registry/about-github-container-registry)
+
+## [v0.18.0](https://github.com/markphelps/flipt/releases/tag/v0.18.0) - 2020-08-02
+
+### Added
+
+* Ability to configure database without using URL [https://github.com/markphelps/flipt/issues/316](https://github.com/markphelps/flipt/issues/316)
+
+## [v0.17.1](https://github.com/markphelps/flipt/releases/tag/v0.17.1) - 2020-07-16
+
+### Fixed
+
+* Don't log database url/credentials on startup [https://github.com/markphelps/flipt/issues/319](https://github.com/markphelps/flipt/issues/319)
+
+## [v0.17.0](https://github.com/markphelps/flipt/releases/tag/v0.17.0) - 2020-07-10
+
+### Added
+
+* Check for newer versions of Flipt on startup. Can be disabled by setting `meta.check_for_updates=false` in config. [https://github.com/markphelps/flipt/pull/311](https://github.com/markphelps/flipt/pull/311)
+* Ability to configure database connections [https://github.com/markphelps/flipt/pull/313](https://github.com/markphelps/flipt/pull/313)
+* Prometheus metrics around database connections [https://github.com/markphelps/flipt/pull/314](https://github.com/markphelps/flipt/pull/314)
+* OpenTracing/Jaeger support [https://github.com/markphelps/flipt/pull/315](https://github.com/markphelps/flipt/pull/315)
+
+### Changed
+
+* Update FQDN for cache metrics
+
+## [v0.16.1](https://github.com/markphelps/flipt/releases/tag/v0.16.1) [Backport] - 2020-07-16
+
+### Fixed
+
+* Don't log database url/credentials on startup [https://github.com/markphelps/flipt/issues/319](https://github.com/markphelps/flipt/issues/319)
+
+## [v0.16.0](https://github.com/markphelps/flipt/releases/tag/v0.16.0) - 2020-06-29
+
+### Added
+
+* MySQL support: [https://github.com/markphelps/flipt/issues/224](https://github.com/markphelps/flipt/issues/224)
+
+## [v0.15.0](https://github.com/markphelps/flipt/releases/tag/v0.15.0) - 2020-06-03
+
+### Added
+
+* Batch Evaluation [https://github.com/markphelps/flipt/issues/61](https://github.com/markphelps/flipt/issues/61)
+
+## [v0.14.1](https://github.com/markphelps/flipt/releases/tag/v0.14.1) - 2020-05-27
+
+### Changed
+
+* Colons are no longer allowed in flag or segment keys [https://github.com/markphelps/flipt/issues/262](https://github.com/markphelps/flipt/issues/262)
+
+## [v0.14.0](https://github.com/markphelps/flipt/releases/tag/v0.14.0) - 2020-05-16
+
+### Added
+
+* Ability to import from STDIN [https://github.com/markphelps/flipt/issues/278](https://github.com/markphelps/flipt/issues/278)
+
+### Changed
+
+* Updated several dependencies
+
 ## [v0.13.1](https://github.com/markphelps/flipt/releases/tag/v0.13.1) - 2020-04-05
 
 ### Added

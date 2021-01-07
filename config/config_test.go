@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	jaeger "github.com/uber/jaeger-client-go"
 )
 
 func TestScheme(t *testing.T) {
@@ -59,28 +60,85 @@ func TestLoad(t *testing.T) {
 			expected: Default(),
 		},
 		{
-			name: "configured",
+			name: "database key/value",
+			path: "./testdata/config/database.yml",
+			expected: &Config{
+				Log: LogConfig{
+					Level: "INFO",
+				},
+
+				UI: UIConfig{
+					Enabled: true,
+				},
+
+				Cors: CorsConfig{
+					Enabled:        false,
+					AllowedOrigins: []string{"*"},
+				},
+
+				Cache: CacheConfig{
+					Memory: MemoryCacheConfig{
+						Enabled:          false,
+						Expiration:       -1,
+						EvictionInterval: 10 * time.Minute,
+					},
+				},
+
+				Server: ServerConfig{
+					Host:      "0.0.0.0",
+					Protocol:  HTTP,
+					HTTPPort:  8080,
+					HTTPSPort: 443,
+					GRPCPort:  9000,
+				},
+
+				Tracing: TracingConfig{
+					Jaeger: JaegerTracingConfig{
+						Enabled: false,
+						Host:    jaeger.DefaultUDPSpanServerHost,
+						Port:    jaeger.DefaultUDPSpanServerPort,
+					},
+				},
+
+				Database: DatabaseConfig{
+					Protocol:       DatabaseMySQL,
+					Host:           "localhost",
+					Port:           3306,
+					User:           "flipt",
+					Password:       "s3cr3t!",
+					Name:           "flipt",
+					MigrationsPath: "/etc/flipt/config/migrations",
+					MaxIdleConn:    2,
+				},
+
+				Meta: MetaConfig{
+					CheckForUpdates: true,
+				},
+			},
+		},
+		{
+			name: "advanced",
 			path: "./testdata/config/advanced.yml",
 			expected: &Config{
-				Log: logConfig{
+				Log: LogConfig{
 					Level: "WARN",
 					File:  "testLogFile.txt",
 				},
-				UI: uiConfig{
+				UI: UIConfig{
 					Enabled: false,
 				},
-				Cors: corsConfig{
+				Cors: CorsConfig{
 					Enabled:        true,
 					AllowedOrigins: []string{"foo.com"},
 				},
-				Cache: cacheConfig{
-					Memory: memoryCacheConfig{
+				Cache: CacheConfig{
+					Memory: MemoryCacheConfig{
 						Enabled:          true,
 						Expiration:       5 * time.Minute,
 						EvictionInterval: 1 * time.Minute,
 					},
 				},
-				Server: serverConfig{
+				Server: ServerConfig{
 					Host:      "127.0.0.1",
 					Protocol:  HTTPS,
 					HTTPPort:  8081,
@@ -89,9 +147,22 @@ func TestLoad(t *testing.T) {
 					CertFile:  "./testdata/config/ssl_cert.pem",
 					CertKey:   "./testdata/config/ssl_key.pem",
 				},
-				Database: databaseConfig{
-					MigrationsPath: "./config/migrations",
-					URL:            "postgres://postgres@localhost:5432/flipt?sslmode=disable",
+				Tracing: TracingConfig{
+					Jaeger: JaegerTracingConfig{
+						Enabled: true,
+						Host:    "localhost",
+						Port:    6831,
+					},
+				},
+				Database: DatabaseConfig{
+					MigrationsPath:  "./config/migrations",
+					URL:             "postgres://postgres@localhost:5432/flipt?sslmode=disable",
+					MaxIdleConn:     10,
+					MaxOpenConn:     50,
+					ConnMaxLifetime: 30 * time.Minute,
+				},
+				Meta: MetaConfig{
+					CheckForUpdates: false,
 				},
 			},
 		},
@@ -124,90 +195,123 @@ func TestValidate(t *testing.T) {
 	tests := []struct {
 		name       string
 		cfg        *Config
-		wantErr    bool
 		wantErrMsg string
 	}{
 		{
 			name: "https: valid",
 			cfg: &Config{
-				Server: serverConfig{
+				Server: ServerConfig{
 					Protocol: HTTPS,
 					CertFile: "./testdata/config/ssl_cert.pem",
 					CertKey:  "./testdata/config/ssl_key.pem",
+				},
+				Database: DatabaseConfig{
+					URL: "localhost",
 				},
 			},
 		},
 		{
 			name: "http: valid",
 			cfg: &Config{
-				Server: serverConfig{
+				Server: ServerConfig{
 					Protocol: HTTP,
-					CertFile: "foo.pem",
-					CertKey:  "bar.pem",
+				},
+				Database: DatabaseConfig{
+					URL: "localhost",
 				},
 			},
 		},
 		{
 			name: "https: empty cert_file path",
 			cfg: &Config{
-				Server: serverConfig{
+				Server: ServerConfig{
 					Protocol: HTTPS,
 					CertFile: "",
 					CertKey:  "./testdata/config/ssl_key.pem",
 				},
 			},
-			wantErr:    true,
-			wantErrMsg: "cert_file cannot be empty when using HTTPS",
+			wantErrMsg: "server.cert_file cannot be empty when using HTTPS",
 		},
 		{
 			name: "https: empty key_file path",
 			cfg: &Config{
-				Server: serverConfig{
+				Server: ServerConfig{
 					Protocol: HTTPS,
 					CertFile: "./testdata/config/ssl_cert.pem",
 					CertKey:  "",
 				},
 			},
-			wantErr:    true,
-			wantErrMsg: "cert_key cannot be empty when using HTTPS",
+			wantErrMsg: "server.cert_key cannot be empty when using HTTPS",
 		},
 		{
 			name: "https: missing cert_file",
 			cfg: &Config{
-				Server: serverConfig{
+				Server: ServerConfig{
 					Protocol: HTTPS,
 					CertFile: "foo.pem",
 					CertKey:  "./testdata/config/ssl_key.pem",
 				},
 			},
-			wantErr:    true,
-			wantErrMsg: "cannot find TLS cert_file at \"foo.pem\"",
+			wantErrMsg: "cannot find TLS server.cert_file at \"foo.pem\"",
 		},
 		{
 			name: "https: missing key_file",
 			cfg: &Config{
-				Server: serverConfig{
+				Server: ServerConfig{
 					Protocol: HTTPS,
 					CertFile: "./testdata/config/ssl_cert.pem",
 					CertKey:  "bar.pem",
 				},
 			},
-			wantErr:    true,
-			wantErrMsg: "cannot find TLS cert_key at \"bar.pem\"",
+			wantErrMsg: "cannot find TLS server.cert_key at \"bar.pem\"",
+		},
+		{
+			name: "db: missing protocol",
+			cfg: &Config{
+				Server: ServerConfig{
+					Protocol: HTTP,
+				},
+				Database: DatabaseConfig{},
+			},
+			wantErrMsg: "database.protocol cannot be empty",
+		},
+		{
+			name: "db: missing host",
+			cfg: &Config{
+				Server: ServerConfig{
+					Protocol: HTTP,
+				},
+				Database: DatabaseConfig{
+					Protocol: DatabaseSQLite,
+				},
+			},
+			wantErrMsg: "database.host cannot be empty",
+		},
+		{
+			name: "db: missing name",
+			cfg: &Config{
+				Server: ServerConfig{
+					Protocol: HTTP,
+				},
+				Database: DatabaseConfig{
+					Protocol: DatabaseSQLite,
+					Host:     "localhost",
+				},
+			},
+			wantErrMsg: "database.name cannot be empty",
 		},
 	}
 
 	for _, tt := range tests {
 		var (
 			cfg        = tt.cfg
-			wantErr    = tt.wantErr
 			wantErrMsg = tt.wantErrMsg
 		)
 
 		t.Run(tt.name, func(t *testing.T) {
 			err := cfg.validate()
 
-			if wantErr {
+			if wantErrMsg != "" {
 				require.Error(t, err)
 				assert.EqualError(t, err, wantErrMsg)
 				return

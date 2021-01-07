@@ -21,10 +21,20 @@
 #   https_port: 443
 #   http_port: 8080
 #   grpc_port: 9000
-#   eval_only: false
 
 # db:
 #   url: file:/var/opt/flipt/flipt.db
-#   url: mysql://user:pass@localhost:3306/flipt?multiStatements=true&parseTime=true
 #   migrations:
 #     path: /etc/flipt/config/migrations
+#   max_idle_conn: 2
+#   max_open_conn: 0 # unlimited
+#   conn_max_lifetime: 0 # unlimited
+
+# tracing:
+#   jaeger:
+#     enabled: false
+#     host: localhost
+#     port: 6831
+
+# meta:
+#   check_for_updates: true
