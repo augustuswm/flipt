@@ -5,7 +5,7 @@ let host =
 
 let cookies = document.cookie.split(";");
 cookies = cookies
-  .map(cookie => cookie.split("="))
+  .map(cookie => cookie.trim().split("="))
   .filter(([name]) => name === "token");
 
 let auth = cookies.length > 0 ? cookies[0][1] : "";
